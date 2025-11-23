@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ProjectStatus {
+  ACTIVE
+  MAINTENANCE
+  ARCHIVED
+  CRITICAL
+}
+
+enum DeploymentStatus {
+  SUCCESS
+  FAILED
+  BUILDING
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DependencySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DependencyStatus {
+  OPEN
+  FIXING
+  FIXED
+}
+
+enum AppIdeaStatus {
+  DRAFT
+  PLANNED
+  IN_PROGRESS
+}
+
+model Project {
+  id               String            @id
+  name             String
+  description      String
+  status           ProjectStatus
+  techStackJson    String            // JSON stringified array of tech stack labels
+  repoUrl          String
+  lastDeployedAt   DateTime
+  healthScore      Int
+  deployments      Deployment[]
+  tasks            Task[]
+  dependencyIssues DependencyIssue[]
+  scans            RepoScan[]
+}
+
+model Deployment {
+  id         String           @id
+  project    Project          @relation(fields: [projectId], references: [id])
+  projectId  String
+  status     DeploymentStatus
+  timestamp  DateTime
+  commitHash String
+  branch     String
+}
+
+model Task {
+  id        String       @id
+  project   Project?     @relation(fields: [projectId], references: [id])
+  projectId String?
+  title     String
+  status    TaskStatus
+  priority  TaskPriority
+}
+
+model DependencyIssue {
+  id             String            @id
+  project        Project           @relation(fields: [projectId], references: [id])
+  projectId      String
+  packageName    String
+  currentVersion String
+  latestVersion  String
+  severity       DependencySeverity
+  status         DependencyStatus
+  riskScore      Int
+  cveId          String?
+}
+
+model AppIdea {
+  id                  String         @id
+  title               String
+  description         String
+  problemStatement    String
+  featuresJson        String         // JSON stringified array
+  targetAudience      String
+  revenueModel        String
+  marketingStrategy   String
+  techStackSuggestion String
+  mermaidDiagram      String
+  tagsJson            String         // JSON stringified array
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  status              AppIdeaStatus
+  notes               String?
+}
+
+model ApiRequestLog {
+  id           String   @id @default(cuid())
+  method       String
+  url          String
+  requestBody  String?
+  responseBody String?
+  statusCode   Int?
+  createdAt    DateTime @default(now())
+}
+
+model RepoScan {
+  id                   String   @id @default(cuid())
+  project              Project? @relation(fields: [projectId], references: [id])
+  projectId            String?
+  score                Int
+  timestamp            DateTime @default(now())
+  repoPath             String
+  categoryScoresJson   String
+  resultsJson          String
+  productionReady      Boolean?
+  readinessReasonsJson String?
+
+  @@index([projectId, timestamp])
+  @@index([repoPath, timestamp])
+}
+
+model RateLimitCounter {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
