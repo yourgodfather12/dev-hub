@@ -30,6 +30,11 @@ services:
       API_PROXY_ALLOWLIST: ${API_PROXY_ALLOWLIST:-localhost}
     volumes:
       - ./server/dev.db:/app/server/dev.db
+      - ./server/scripts:/app/server/scripts
+      - ./server/src:/app/server/src
+      - ./server/prisma:/app/server/prisma
+      - ./server/tsconfig.json:/app/server/tsconfig.json
+      - ./server/tsconfig.scripts.json:/app/server/tsconfig.scripts.json
     restart: unless-stopped
 
 volumes:

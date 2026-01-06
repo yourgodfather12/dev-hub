@@ -6,8 +6,9 @@
 process.env.API_ADMIN_TOKEN = process.env.API_ADMIN_TOKEN ?? 'test-admin-token';
 process.env.ENABLE_LOCAL_REPO_SCAN = process.env.ENABLE_LOCAL_REPO_SCAN ?? 'false';
 
-const assert = require('assert');
-const { buildServer } = require('./server');
+import assert from 'assert';
+import { buildServer } from './server';
+
 
 async function run() {
   const app = await buildServer();

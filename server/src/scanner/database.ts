@@ -1,5 +1,6 @@
-// @ts-ignore - Generated client might not exist during initial development
-import { PrismaClient } from '../generated/client/client';
+import { PrismaClient } from '@prisma/client';
+
+
 import { ScanReport } from './types';
 import { scanRepository, type EnhancedScannerOptions } from './index';
 
@@ -19,20 +20,20 @@ export interface ScanJobResult {
  * Database integration for repository scanning
  */
 export class ScannerDatabase {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
   /**
    * Run a complete scan and optionally save to database
    */
   async scanAndSave(options: ScanJobOptions): Promise<ScanJobResult> {
     const { projectId, repoPath, saveToDatabase = true, ...scanOptions } = options;
-    
+
     // Run the scan
     const report = await scanRepository(repoPath, scanOptions);
-    
+
     let scanId: string | undefined;
     let saved = false;
-    
+
     // Save to database if requested
     if (saveToDatabase) {
       try {
@@ -44,16 +45,16 @@ export class ScannerDatabase {
         saved = false;
       }
     }
-    
+
     const result: ScanJobResult = {
       report,
       saved
     };
-    
+
     if (scanId) {
       result.scanId = scanId;
     }
-    
+
     return result;
   }
 
@@ -122,7 +123,7 @@ export class ScannerDatabase {
    */
   async getScanReport(scanId: string): Promise<ScanReport | null> {
     const scan = await this.getScan(scanId);
-    
+
     if (!scan) {
       return null;
     }
@@ -272,7 +273,7 @@ export class ScannerDatabase {
     const scansWithSecurityIssues = scans.filter((scan: any) => {
       try {
         const results = JSON.parse(scan.resultsJson);
-        return results.some((result: any) => 
+        return results.some((result: any) =>
           result.category === 'security' && !result.passed
         );
       } catch {
@@ -302,7 +303,7 @@ export class ScannerDatabase {
 
       if (scans.length > keepCount) {
         const scansToDelete = scans.slice(keepCount);
-        
+
         await this.prisma.repoScan.deleteMany({
           where: {
             id: {

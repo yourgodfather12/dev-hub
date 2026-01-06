@@ -44,9 +44,10 @@ WORKDIR /app/server
 ENV NODE_ENV=production
 
 # Copy runtime deps and built artifacts
-COPY --from=deps /app/server/node_modules ./node_modules
+COPY --from=build-server /app/server/node_modules ./node_modules
 COPY --from=build-server /app/server/dist ./dist
 COPY --from=build-server /app/server/public ./public
+
 COPY --from=build-server /app/server/package.json ./package.json
 COPY --from=build-server /app/server/dev.db ./dev.db
 

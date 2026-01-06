@@ -1,5 +1,6 @@
-// @ts-ignore - Generated client might not exist during initial development
-import { PrismaClient } from '../generated/client/client';
+import { PrismaClient } from '@prisma/client';
+
+
 import { ScannerDatabase, ScanJobOptions, ScanJobResult } from './database';
 import { EnhancedScannerOptions, ScanReport, analyzeRepo } from './index';
 
@@ -98,7 +99,7 @@ export class ScannerService {
     const stats = await this.database.getProjectScanStats(projectId);
 
     const scanResults: ScanJobResult[] = [];
-    
+
     for (const scan of scans) {
       try {
         const report = await this.database.getScanReport(scan.id);
@@ -130,7 +131,7 @@ export class ScannerService {
    */
   async getLatestProjectScan(projectId: string): Promise<ScanJobResult | null> {
     const scan = await this.database.getLatestProjectScan(projectId);
-    
+
     if (!scan) {
       return null;
     }
@@ -157,7 +158,7 @@ export class ScannerService {
    */
   async getScan(scanId: string): Promise<ScanJobResult | null> {
     const report = await this.database.getScanReport(scanId);
-    
+
     if (!report) {
       return null;
     }
@@ -256,7 +257,7 @@ export class ScannerService {
    */
   async getDashboardStats() {
     const recentScans = await this.database.getRecentScans(100);
-    
+
     if (recentScans.length === 0) {
       return {
         totalScans: 0,
@@ -363,11 +364,11 @@ export class ScannerService {
       });
     }
 
-    const newIssues = scan2.results.filter(r2 => 
+    const newIssues = scan2.results.filter(r2 =>
       !r2.passed && !scan1.results.some(r1 => r1.checkId === r2.checkId && !r1.passed)
     );
 
-    const resolvedIssues = scan1.results.filter(r1 => 
+    const resolvedIssues = scan1.results.filter(r1 =>
       !r1.passed && !scan2.results.some(r2 => r2.checkId === r1.checkId && !r2.passed)
     );
 

@@ -765,8 +765,8 @@ export async function buildServer() {
           typeof d.created === 'number'
             ? d.created
             : typeof d.createdAt === 'number'
-            ? d.createdAt
-            : Date.now();
+              ? d.createdAt
+              : Date.now();
 
         return {
           id: String(d.uid ?? d.id ?? ''),
@@ -1347,4 +1347,7 @@ async function start() {
   }
 }
 
-start();
+if (require.main === module) {
+  start();
+}
+
