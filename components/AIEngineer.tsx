@@ -289,8 +289,24 @@ const AppIdeas: React.FC = () => {
                                       ))}
                                   </div>
                                   <div className="flex gap-2">
-                                      <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Share"><Share2 className="w-4 h-4" /></button>
-                                      <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white" title="Export"><Download className="w-4 h-4" /></button>
+                                      <button 
+                                        onClick={() => {
+                                            // Share functionality
+                                        }}
+                                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white" 
+                                        title="Share"
+                                      >
+                                        <Share2 className="w-4 h-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                            // Export functionality
+                                        }}
+                                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white" 
+                                        title="Export"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </button>
                                   </div>
                               </div>
                               <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-4">{selectedIdea.title}</h1>
@@ -342,7 +358,12 @@ const AppIdeas: React.FC = () => {
                                    >
                                       <Code className="w-4 h-4" />
                                    </button>
-                                   <button className="p-1.5 hover:bg-white/10 rounded text-zinc-500 hover:text-zinc-300 transition-colors">
+                                   <button 
+                                   onClick={() => {
+                                       // Fullscreen diagram functionality
+                                   }}
+                                   className="p-1.5 hover:bg-white/10 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                               >
                                       <Maximize2 className="w-4 h-4" />
                                    </button>
                                </div>

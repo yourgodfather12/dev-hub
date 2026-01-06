@@ -62,7 +62,7 @@ async function testEnhancedScanner() {
       .filter(r => !r.passed)
       .reduce((groups, result) => {
         if (!groups[result.category]) groups[result.category] = [];
-        groups[result.category].push(result);
+        groups[result.category]?.push(result);
         return groups;
       }, {} as Record<string, any[]>);
     

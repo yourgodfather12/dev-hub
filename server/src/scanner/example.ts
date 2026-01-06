@@ -170,8 +170,8 @@ async function dashboardAnalyticsExample(prisma: PrismaClient) {
   const recentScans = await scannerService.getRecentScans(2);
   if (recentScans.length >= 2) {
     const comparison = await scannerService.compareScans(
-      recentScans[1].scanId!,
-      recentScans[0].scanId!
+      recentScans[1]?.scanId!,
+      recentScans[0]?.scanId!
     );
     
     console.log(`   Scan comparison:`);

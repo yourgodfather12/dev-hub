@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { ViewState } from '../types';
-import { Settings, LogOut, Command } from 'lucide-react';
+import { Settings, LogOut, Command, X } from 'lucide-react';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -36,6 +36,7 @@ const bgColors: Record<ThemeKey, string> = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   return (
     <aside className="w-[260px] bg-zinc-950/80 border-r border-white/5 flex flex-col h-full backdrop-blur-xl z-50 relative">
       {/* Subtle gradient overlay */}
@@ -85,11 +86,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
       </nav>
 
       <div className="p-4 border-t border-white/5 bg-gradient-to-t from-black to-zinc-900/50 relative z-10">
-        <button className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:bg-white/5 hover:text-zinc-200 transition-colors mb-1">
+        <button 
+          onClick={() => setShowSettingsModal(true)}
+          className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:bg-white/5 hover:text-zinc-200 transition-colors mb-1"
+        >
           <Settings className="w-4 h-4 mr-3 text-zinc-600 group-hover:text-zinc-400" />
           Settings
         </button>
-        <button className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+        <button 
+          onClick={() => {
+              // Sign out functionality
+          }}
+          className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+        >
           <LogOut className="w-4 h-4 mr-3 text-zinc-600 group-hover:text-red-400" />
           Sign Out
         </button>
@@ -105,6 +114,58 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
            <span className="text-[10px] text-zinc-600 font-mono">v2.5.0</span>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#1c1c1e] border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white flex items-center">
+                <Settings className="w-5 h-5 mr-2 text-zinc-400" />
+                Settings
+              </h3>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                <h4 className="text-sm font-medium text-white mb-2">Application Settings</h4>
+                <p className="text-xs text-zinc-400">Configure your Dev Hub preferences and integrations.</p>
+              </div>
+              
+              <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                <h4 className="text-sm font-medium text-white mb-2">API Configuration</h4>
+                <p className="text-xs text-zinc-400">Manage API keys and service connections.</p>
+              </div>
+              
+              <div className="p-4 bg-black/30 border border-white/10 rounded-lg">
+                <h4 className="text-sm font-medium text-white mb-2">Theme & Display</h4>
+                <p className="text-xs text-zinc-400">Customize the appearance and behavior.</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-4">
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => setShowSettingsModal(false)}
+                className="flex-1 px-4 py-2 bg-white hover:bg-zinc-200 text-black rounded-lg text-xs font-bold transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

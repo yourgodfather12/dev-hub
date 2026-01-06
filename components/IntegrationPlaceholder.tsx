@@ -22,7 +22,12 @@ const IntegrationPlaceholder: React.FC<IntegrationPlaceholderProps> = ({ title, 
       <h2 className="text-5xl font-bold text-white tracking-tighter mb-6">{title}</h2>
       <p className="text-zinc-400 text-lg leading-relaxed mb-10 font-light">{description}</p>
       
-      <button className="group relative px-8 py-4 bg-white text-black rounded-xl font-bold text-sm transition-all hover:scale-105 overflow-hidden">
+      <button 
+        onClick={() => {
+            // Integration connection functionality
+        }}
+        className="group relative px-8 py-4 bg-white text-black rounded-xl font-bold text-sm transition-all hover:scale-105 overflow-hidden"
+      >
         <span className="relative z-10 flex items-center">
           Connect Integration <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
         </span>

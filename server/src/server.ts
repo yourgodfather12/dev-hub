@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import fs from 'fs';
 import path from 'path';
 import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import fetch from 'cross-fetch';
 import { z } from 'zod';
 import { prisma } from './prisma';
@@ -58,6 +60,8 @@ const EFFECTIVE_CORS_ALLOWED_ORIGINS =
     : DEFAULT_CORS_ALLOWED_ORIGINS;
 const scannerDatabase = new ScannerDatabase(prisma);
 const scannerService = createScannerService(prisma);
+const STATIC_DIR = path.join(__dirname, '../public');
+const SERVE_STATIC_ASSETS = process.env.SERVE_STATIC_ASSETS === 'true';
 
 const isHostAllowed = (target: string) => {
   if (!API_PROXY_ALLOWLIST.length) {
@@ -504,6 +508,32 @@ export async function buildServer() {
   app.get('/health', async () => ok({ status: 'ok' }));
 
   app.get('/health/config', async () => ok(getConfigStatus()));
+
+  if (SERVE_STATIC_ASSETS && fs.existsSync(STATIC_DIR)) {
+    app.register(fastifyStatic, {
+      root: STATIC_DIR,
+      prefix: '/',
+      index: false,
+    });
+
+    app.setNotFoundHandler((request, reply) => {
+      const url = request.raw.url ?? '';
+      if (url.startsWith('/api') || url.startsWith('/health')) {
+        reply.code(404).send(fail('Not Found', 'NOT_FOUND'));
+        return;
+      }
+      const indexPath = path.join(STATIC_DIR, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        reply.type('text/html').send(fs.readFileSync(indexPath));
+      } else {
+        reply.code(404).send(fail('Not Found', 'NOT_FOUND'));
+      }
+    });
+  } else if (SERVE_STATIC_ASSETS) {
+    app.log.warn(`Static dir not found at ${STATIC_DIR}; frontend assets will not be served.`);
+  } else {
+    app.log.info('Static asset serving is disabled (SERVE_STATIC_ASSETS != "true").');
+  }
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error, 'Unhandled error');

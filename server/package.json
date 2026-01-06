@@ -16,6 +16,7 @@
   "type": "commonjs",
   "dependencies": {
     "@fastify/cors": "^11.1.0",
+    "@fastify/static": "^8.0.3",
     "@prisma/adapter-better-sqlite3": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "cross-fetch": "^4.1.0",
