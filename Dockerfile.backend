@@ -1,35 +1,63 @@
 # syntax=docker/dockerfile:1
 
-## Install backend dependencies
+## Stage 1: Install backend dependencies
 FROM node:20-bookworm AS deps
-WORKDIR /app
+WORKDIR /app/server
 
-COPY server/package.json server/package-lock.json ./server/
-RUN cd server && npm ci
+COPY server/package.json server/package-lock.json ./
+RUN npm ci && npm cache clean --force
 
-## Build backend
+## Stage 2: Build backend
 FROM node:20-bookworm AS build
 WORKDIR /app/server
+
 ARG DATABASE_URL=file:./dev.db
 ENV DATABASE_URL=$DATABASE_URL
 
+# Copy dependencies
 COPY --from=deps /app/server/node_modules ./node_modules
-COPY server/. .
 
+# Copy source files
+COPY server/package.json server/tsconfig.json server/tsconfig.scripts.json ./
+COPY server/prisma.config.ts ./
+COPY server/prisma ./prisma
+COPY server/src ./src
+COPY server/scripts ./scripts
+
+# Generate Prisma client and build TypeScript
+RUN npx prisma generate
 RUN npm run build
-RUN DATABASE_URL=$DATABASE_URL npx prisma generate --schema prisma/schema.prisma
 
-## Runtime image
+## Stage 3: Production runtime
 FROM node:20-slim AS runner
 WORKDIR /app/server
+
+# Install SQLite3 for runtime
+RUN apt-get update && apt-get install -y \
+    sqlite3 openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
+ENV PORT=4000
 
+# Copy runtime dependencies and built code
 COPY --from=build /app/server/node_modules ./node_modules
-
-COPY --from=build /app/server/dist ./dist
 COPY --from=build /app/server/package.json ./package.json
-COPY --from=build /app/server/dev.db ./dev.db
+COPY --from=build /app/server/tsconfig.json ./tsconfig.json
+COPY --from=build /app/server/dist ./dist
+COPY --from=build /app/server/prisma ./prisma
+COPY --from=build /app/server/prisma.config.ts ./
+
+# Create data directory for SQLite
+RUN mkdir -p /app/server/data && chown -R node:node /app/server
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 EXPOSE 4000
+
+# Run as non-root user
+USER node
 
 CMD ["node", "dist/server.js"]

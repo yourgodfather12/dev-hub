@@ -244,3 +244,46 @@ export async function fetchLatestRepoScanForProject(
     return null;
   }
 }
+
+export async function createProject(project: {
+  name: string;
+  description?: string;
+  repoUrl: string;
+  techStack?: string[];
+}): Promise<Project> {
+  const created = await request<any>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(project),
+  });
+
+  return {
+    id: created.id,
+    name: created.name,
+    description: created.description,
+    status: mapProjectStatus(created.status),
+    techStack: Array.isArray(created.techStack) ? created.techStack : JSON.parse(created.techStackJson || '[]'),
+    repoUrl: created.repoUrl,
+    lastDeployed: created.lastDeployedAt,
+    healthScore: created.healthScore,
+  };
+}
+
+export async function fetchLogs(limit: number = 20): Promise<any[]> {
+  return request<any[]>(`/api/logs?limit=${limit}`);
+}
+
+export async function fetchIntegrationSummary(service: 'supabase' | 'vercel'): Promise<any> {
+  return request<any>(`/api/integrations/${service}/summary`);
+}
+
+export async function fetchSystemStats(): Promise<any> {
+  return request<any>('/api/system/stats');
+}
+
+export const apiClient = {
+  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
+  post: <T>(path: string, body: any) => request<T>(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }),
+};

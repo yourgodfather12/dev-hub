@@ -50,7 +50,9 @@ export enum ViewState {
   VERCEL = 'VERCEL',
   DOCKER = 'DOCKER',
   STRIPE = 'STRIPE',
-  HUGGING_FACE = 'HUGGING_FACE'
+  HUGGING_FACE = 'HUGGING_FACE',
+  PROJECT_WORKSHOP = 'PROJECT_WORKSHOP',
+  PROJECT_STUDIO = 'PROJECT_STUDIO'
 }
 
 export interface DependencyIssue {

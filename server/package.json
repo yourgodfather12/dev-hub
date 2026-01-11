@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "ts-node src/seed.ts",
+    "seed:repo-scans": "ts-node src/scripts/seedRepoScans.ts",
     "test": "ts-node src/server.test.ts"
   },
   "keywords": [],

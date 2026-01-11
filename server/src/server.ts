@@ -490,16 +490,60 @@ async function fetchGithubProjects() {
       repoUrl: repo.html_url ?? '',
       lastDeployedAt:
         repo.pushed_at ?? repo.updated_at ?? new Date().toISOString(),
-      healthScore,
     };
   });
 }
 
 export async function buildServer() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: {
+      level: NODE_ENV === 'development' ? 'debug' : 'info',
+    },
+    disableRequestLogging: NODE_ENV === 'production'
+  });
 
   logConfigWarnings(app);
   void pruneOldRecords(app);
+
+  // Seed projects if empty
+  const projectCount = await prisma.project.count();
+  if (projectCount === 0) {
+    const defaultProjects = [
+      {
+        id: 'lotsignal-v2',
+        name: 'LotSignal-v2',
+        description: 'Automated vehicle inventory tracking and signal analysis for dealership lots.',
+        status: 'ACTIVE',
+        techStackJson: JSON.stringify(['React', 'Node.js', 'PostgreSQL', 'Tensorflow']),
+        repoUrl: 'https://github.com/yourgodfather12/LotSignal-v2',
+        lastDeployedAt: new Date(),
+        healthScore: 85,
+      },
+      {
+        id: 'fansurge-11-27-25',
+        name: 'FanSurge',
+        description: 'Real-time fan engagement analytics and social surge prediction platform.',
+        status: 'ACTIVE',
+        techStackJson: JSON.stringify(['Next.js', 'Typescript', 'Redis', 'WebSockets']),
+        repoUrl: 'https://github.com/yourgodfather12/fansurge-11-27-25',
+        lastDeployedAt: new Date(),
+        healthScore: 92,
+      },
+      {
+        id: 'case-canvas',
+        name: 'CaseCanvas',
+        description: 'Visual legal case management and timeline visualization tool.',
+        status: 'ACTIVE',
+        techStackJson: JSON.stringify(['React', 'D3.js', 'Prisma', 'Supabase']),
+        repoUrl: 'https://github.com/yourgodfather12/case-canvas',
+        lastDeployedAt: new Date(),
+        healthScore: 78,
+      }
+    ];
+    for (const p of defaultProjects) {
+      await prisma.project.create({ data: p as any });
+    }
+  }
 
   await app.register(cors, {
     origin: EFFECTIVE_CORS_ALLOWED_ORIGINS,
@@ -509,11 +553,16 @@ export async function buildServer() {
 
   app.get('/health/config', async () => ok(getConfigStatus()));
 
+  app.setErrorHandler((error, request, reply) => {
+    request.log.error(error, `Error handling request ${request.method} ${request.url}`);
+    reply.status(500).send(fail('Internal server error', 'INTERNAL_ERROR'));
+  });
+
   if (SERVE_STATIC_ASSETS && fs.existsSync(STATIC_DIR)) {
     app.register(fastifyStatic, {
       root: STATIC_DIR,
       prefix: '/',
-      index: false,
+      index: 'index.html',
     });
 
     app.setNotFoundHandler((request, reply) => {
@@ -524,8 +573,10 @@ export async function buildServer() {
       }
       const indexPath = path.join(STATIC_DIR, 'index.html');
       if (fs.existsSync(indexPath)) {
-        reply.type('text/html').send(fs.readFileSync(indexPath));
+        request.log.info('Serving SPA index.html for unknown route: ' + url);
+        return reply.sendFile('index.html');
       } else {
+        request.log.warn('SPA index.html not found, returning 404');
         reply.code(404).send(fail('Not Found', 'NOT_FOUND'));
       }
     });
@@ -534,11 +585,6 @@ export async function buildServer() {
   } else {
     app.log.info('Static asset serving is disabled (SERVE_STATIC_ASSETS != "true").');
   }
-
-  app.setErrorHandler((error, request, reply) => {
-    request.log.error(error, 'Unhandled error');
-    reply.status(500).send(fail('Internal server error', 'INTERNAL_ERROR'));
-  });
 
   app.post('/api/ai/hf', async (request, reply) => {
     if (!ensureAdminToken(request, reply)) {
@@ -635,6 +681,112 @@ export async function buildServer() {
         err instanceof Error ? err.message : 'Failed to reach Hugging Face',
         'BAD_GATEWAY',
       );
+    }
+  });
+
+  app.get('/api/github/repos', async (request, reply) => {
+    if (!ensureAdminToken(request, reply)) {
+      return;
+    }
+    if (!GITHUB_TOKEN) {
+      reply.code(500);
+      return fail('GITHUB_TOKEN is not configured', 'INTERNAL_ERROR');
+    }
+
+    try {
+      const response = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        app.log.error(`GitHub API error (repos): ${error}`);
+        reply.code(response.status);
+        return fail('Failed to fetch repositories from GitHub', 'GITHUB_ERROR');
+      }
+
+      const repos = await response.json();
+      return ok(repos);
+    } catch (error) {
+      app.log.error(error, 'Error fetching GitHub repositories');
+      reply.code(500);
+      return fail('Internal server error while fetching repositories', 'INTERNAL_ERROR');
+    }
+  });
+
+  app.get('/api/github/repo/:owner/:repo/files', async (request, reply) => {
+    if (!ensureAdminToken(request, reply)) {
+      return;
+    }
+    const { owner, repo } = request.params as { owner: string; repo: string };
+    const { ref = 'main' } = request.query as { ref?: string };
+
+    if (!GITHUB_TOKEN) {
+      reply.code(500);
+      return fail('GITHUB_TOKEN is not configured', 'INTERNAL_ERROR');
+    }
+
+    try {
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`, {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        app.log.error(`GitHub API error (files): ${error}`);
+        reply.code(response.status);
+        return fail('Failed to fetch files from GitHub', 'GITHUB_ERROR');
+      }
+
+      const data = await response.json();
+      return ok(data);
+    } catch (error) {
+      app.log.error(error, 'Error fetching GitHub files');
+      reply.code(500);
+      return fail('Internal server error while fetching files', 'INTERNAL_ERROR');
+    }
+  });
+
+  app.get('/api/github/repo/:owner/:repo/contents/*', async (request, reply) => {
+    if (!ensureAdminToken(request, reply)) {
+      return;
+    }
+    const { owner, repo } = request.params as { owner: string; repo: string };
+    const path = (request.params as any)['*'];
+    const { ref = 'main' } = request.query as { ref?: string };
+
+    if (!GITHUB_TOKEN) {
+      reply.code(500);
+      return fail('GITHUB_TOKEN is not configured', 'INTERNAL_ERROR');
+    }
+
+    try {
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${ref}`, {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        app.log.error(`GitHub API error (contents): ${error}`);
+        reply.code(response.status);
+        return fail('Failed to fetch file content from GitHub', 'GITHUB_ERROR');
+      }
+
+      const data = await response.json();
+      return ok(data);
+    } catch (error) {
+      app.log.error(error, 'Error fetching GitHub file content');
+      reply.code(500);
+      return fail('Internal server error while fetching content', 'INTERNAL_ERROR');
     }
   });
 
@@ -908,6 +1060,24 @@ export async function buildServer() {
     return ok(mapped);
   });
 
+  app.get('/api/system/stats', async (request, reply) => {
+    if (!ensureAdminToken(request, reply)) {
+      return;
+    }
+    const memoryUsage = process.memoryUsage();
+    return ok({
+      uptime: process.uptime(),
+      memory: {
+        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+        rss: Math.round(memoryUsage.rss / 1024 / 1024),
+      },
+      nodeVersion: process.version,
+      platform: process.platform,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.post('/api/repo-scan/local', async (request, reply) => {
     if (!ensureAdminToken(request, reply)) {
       return;
@@ -1139,6 +1309,44 @@ export async function buildServer() {
       take,
     });
     return ok(logs);
+  });
+
+  app.post('/api/projects', async (request, reply) => {
+    if (!ensureAdminToken(request, reply)) {
+      return;
+    }
+
+    const { name, description, repoUrl, techStack } = request.body as {
+      name: string;
+      description?: string;
+      repoUrl: string;
+      techStack?: string[];
+    };
+
+    if (!name || !repoUrl) {
+      reply.code(400);
+      return fail('Name and repoUrl are required', 'BAD_REQUEST');
+    }
+
+    try {
+      const project = await prisma.project.create({
+        data: {
+          id: `project-${Date.now()}`,
+          name,
+          description: description || '',
+          repoUrl,
+          status: 'ACTIVE',
+          techStackJson: JSON.stringify(techStack || []),
+          lastDeployedAt: new Date(0), // Never deployed
+          healthScore: 100,
+        },
+      });
+      return ok(project);
+    } catch (err) {
+      app.log.error(err, 'Failed to create project');
+      reply.code(500);
+      return fail('Internal server error', 'INTERNAL_ERROR');
+    }
   });
 
   app.get('/api/repo-scans/latest', async (request, reply) => {

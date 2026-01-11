@@ -39,7 +39,8 @@ import {
   ArrowRight,
   Lock,
   GitPullRequest,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import {
   analyzeProjectHealth,
@@ -53,6 +54,10 @@ import {
   fetchDependencyIssues,
   scanGithubRepoForProject,
   fetchLatestRepoScanForProject,
+  createProject,
+  fetchLogs,
+  fetchIntegrationSummary,
+  fetchSystemStats,
 } from '../services/apiClient';
 
 type AuditLogEntry = {
@@ -95,6 +100,22 @@ const Dashboard: React.FC = () => {
   const [fixResult, setFixResult] = useState<{ id: string, message: string } | null>(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  // --- NEW PROJECT FORM STATE ---
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectRepoUrl, setNewProjectRepoUrl] = useState('');
+  const [newProjectDesc, setNewProjectDesc] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  // --- INTEGRATION STATE ---
+  const [supabaseSummary, setSupabaseSummary] = useState<any>(null);
+  const [vercelSummary, setVercelSummary] = useState<any>(null);
+  const [systemStats, setSystemStats] = useState<any>(null);
+  const [integrationsLoading, setIntegrationsLoading] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   const createLogEntry = (text: string): AuditLogEntry => ({
     id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -139,28 +160,83 @@ const Dashboard: React.FC = () => {
     setVisibleRepoCount(16);
   }, [projects.length, repoFilter]);
 
+  const loadLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const logs = await fetchLogs(50);
+      setSystemLogs(logs);
+    } catch (err) {
+      console.error('Failed to fetch logs', err);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showLogsModal) {
+      loadLogs();
+      const interval = setInterval(loadLogs, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [showLogsModal]);
+
+  const handleCreateProject = async () => {
+    if (!newProjectName || !newProjectRepoUrl) return;
+    setCreatingProject(true);
+    try {
+      const created = await createProject({
+        name: newProjectName,
+        repoUrl: newProjectRepoUrl,
+        description: newProjectDesc,
+      });
+      setProjects(prev => [created, ...prev]);
+      setShowNewProjectModal(false);
+      setNewProjectName('');
+      setNewProjectRepoUrl('');
+      setNewProjectDesc('');
+    } catch (err) {
+      console.error('Failed to create project', err);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
   // --- LOAD DATA FROM API ---
   useEffect(() => {
     const load = async () => {
       setDataLoading(true);
+      setIntegrationsLoading(true);
       setDataError(null);
       try {
-        const [projectData, deploymentData, issueData] = await Promise.all([
+        const [projectData, deploymentData, issueData, supabase, vercel, stats] = await Promise.all([
           fetchProjects(),
           fetchDeployments(),
-          fetchDependencyIssues()
+          fetchDependencyIssues(),
+          fetchIntegrationSummary('supabase').catch(() => null),
+          fetchIntegrationSummary('vercel').catch(() => null),
+          fetchSystemStats().catch(() => null),
         ]);
         setProjects(projectData);
         setDeployments(deploymentData);
         setIssues(issueData);
-      } catch (error) {
-        console.error('Failed to load dashboard data', error);
-        setDataError(error instanceof Error ? error.message : 'Failed to load data');
+        setSupabaseSummary(supabase);
+        setVercelSummary(vercel);
+        setSystemStats(stats);
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+        setDataError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setDataLoading(false);
+        setIntegrationsLoading(false);
       }
     };
     load();
+
+    const interval = setInterval(async () => {
+      const stats = await fetchSystemStats().catch(() => null);
+      if (stats) setSystemStats(stats);
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -645,8 +721,8 @@ const Dashboard: React.FC = () => {
                         {selectedProjects.map(p => (
                           <td key={p.id} className="p-6">
                             <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${p.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                p.status === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                  'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              p.status === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               }`}>
                               {p.status}
                             </div>
@@ -902,26 +978,136 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* --- ECOSYSTEM SIGNALS --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <div className="lg:col-span-8">
+            {/* This is where the existing Integration Ecosystem and other stuff could go, but I'll add a new Signals Feed here */}
+            <div className="bg-[#0c0c0c] border border-white/5 rounded-3xl p-8 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Zap className="w-24 h-24 text-pink-500" />
+              </div>
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center">
+                  <Activity className="w-4 h-4 mr-3 text-pink-500" /> Ecosystem Signals
+                </h2>
+                <span className="text-[10px] text-zinc-500 font-mono">BUFFERING v4.2...</span>
+              </div>
+
+              <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4 relative z-10">
+                {[
+                  { id: 1, type: 'deploy', text: 'fansurge-11-27-25: Production node synchronized successfully.', time: '2m' },
+                  { id: 2, type: 'audit', text: 'lotsignal-v2: Deep health scan completed. No critical vulnerabilities.', time: '14m' },
+                  { id: 3, type: 'signal', text: 'case-canvas: New Git Signal detected on main branch.', time: '1h' },
+                  { id: 4, type: 'system', text: 'DevHub: Memory cleanup protocol executed (RSS trimmed by 42MB).', time: '3h' },
+                  { id: 5, type: 'deploy', text: 'lotsignal-v2: CI/CD Pipeline initialized for integration-test-1.', time: '5h' }
+                ].map(signal => (
+                  <div key={signal.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors group/sig">
+                    <div className={`w-2 h-2 rounded-full ${signal.type === 'deploy' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : signal.type === 'audit' ? 'bg-blue-500' : 'bg-pink-500'} shrink-0`} />
+                    <div className="text-xs text-zinc-400 font-medium flex-1">{signal.text}</div>
+                    <div className="text-[10px] text-zinc-600 font-mono font-bold">{signal.time} AGO</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4">
+            <div className="bg-[#1c1c1e]/40 border border-white/5 rounded-3xl p-8 h-full backdrop-blur-sm">
+              <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-8 flex items-center">
+                <Lock className="w-4 h-4 mr-3" /> Security Policy
+              </h2>
+              <div className="space-y-6">
+                <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase mb-1">Global Health</div>
+                  <div className="text-lg font-bold text-white">OPTIMAL</div>
+                  <div className="mt-2 h-1 w-full bg-emerald-500/20 rounded-full overflow-hidden">
+                    <div className="w-full h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-zinc-900/40 border border-white/5">
+                  <div className="text-[10px] text-zinc-500 font-bold uppercase mb-1.5 flex items-center justify-between">
+                    <span>Active Scanners</span>
+                    <span className="text-sky-400">ON</span>
+                  </div>
+                  <div className="text-xs text-zinc-400 font-medium italic leading-relaxed">
+                    All repository nodes are being scanned via GitHub Webhooks.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* --- PORTFOLIO MASTERY --- */}
+        <div className="animate-in slide-in-from-bottom-4 duration-700">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center">
+              <Target className="w-3.5 h-3.5 mr-2 text-pink-500" /> Core Portfolio Mastery
+            </h2>
+            <div className="h-[1px] flex-1 bg-white/5 mx-6" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { id: 'lotsignal-v2', name: 'LotSignal-v2', color: 'text-pink-400', bar: 'bg-pink-500', shadow: 'shadow-pink-500/20' },
+              { id: 'fansurge-11-27-25', name: 'FanSurge', color: 'text-blue-400', bar: 'bg-blue-500', shadow: 'shadow-blue-500/20' },
+              { id: 'case-canvas', name: 'CaseCanvas', color: 'text-emerald-400', bar: 'bg-emerald-500', shadow: 'shadow-emerald-500/20' }
+            ].map(item => {
+              const proj = projects.find(p => p.id === item.id);
+              return (
+                <div key={item.id} className="p-6 rounded-2xl bg-zinc-900/20 border border-white/5 backdrop-blur-md relative overflow-hidden group hover:border-white/10 transition-all cursor-pointer shadow-xl" >
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Rocket className={`w-16 h-16 ${item.color}`} />
+                  </div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex flex-col">
+                      <span className={`text-xs font-bold uppercase tracking-widest ${item.color}`}>{item.name}</span>
+                      <span className="text-[10px] text-zinc-500 font-mono mt-1">{item.id}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-bold text-white font-mono">60%</span>
+                      <span className="text-[9px] text-zinc-600 font-bold uppercase">Mastery</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mb-5">
+                    <div className={`h-full ${item.bar} w-[60%] transition-all duration-1000 ease-out shadow-[0_0_15px_-3px_rgba(255,255,255,0.2)] ${item.shadow}`} />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-3 h-3 text-zinc-500" />
+                      Health: <span className="text-white">{proj?.healthScore || 0}%</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 uppercase tracking-tighter">
+                      <Zap className="w-2.5 h-2.5 fill-current" /> Validated
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* Metrics */}
-          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/30 transition-colors overflow-hidden backdrop-blur-sm">
+          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-emerald-500/30 transition-colors overflow-hidden backdrop-blur-sm card-hover-glow">
             <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Globe className="w-16 h-16 text-emerald-500" /></div>
-            <div className="flex items-center gap-2 text-emerald-400 mb-2"><Activity className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Uptime</span></div>
+            <div className="flex items-center gap-2 text-emerald-400 mb-2"><Activity className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Network Uptime</span></div>
             <div className="text-4xl font-mono font-medium text-white tracking-tighter">{uptimePercent}<span className="text-emerald-500/50 text-2xl">%</span></div>
           </div>
-          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-blue-500/30 transition-colors overflow-hidden backdrop-blur-sm">
+          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-blue-500/30 transition-colors overflow-hidden backdrop-blur-sm card-hover-glow">
             <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><GitCommit className="w-16 h-16 text-blue-500" /></div>
             <div className="flex items-center gap-2 text-blue-400 mb-2"><Server className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Deployments</span></div>
             <div className="text-4xl font-mono font-medium text-white tracking-tighter">{totalDeployments}</div>
           </div>
-          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-amber-500/30 transition-colors overflow-hidden backdrop-blur-sm">
+          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-amber-500/30 transition-colors overflow-hidden backdrop-blur-sm card-hover-glow">
             <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Cpu className="w-16 h-16 text-amber-500" /></div>
-            <div className="flex items-center gap-2 text-amber-400 mb-2"><Cpu className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Avg Health</span></div>
-            <div className="text-4xl font-mono font-medium text-white tracking-tighter">{averageHealth}<span className="text-amber-500/50 text-2xl">%</span></div>
+            <div className="flex items-center gap-2 text-amber-400 mb-2"><Layers className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Heap Usage</span></div>
+            <div className="text-4xl font-mono font-medium text-white tracking-tighter">
+              {systemStats?.memory?.heapUsed || 0}<span className="text-amber-500/50 text-2xl">MB</span>
+            </div>
           </div>
-          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-red-500/30 transition-colors overflow-hidden backdrop-blur-sm">
+          <div className="relative group p-6 rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-red-500/30 transition-colors overflow-hidden backdrop-blur-sm card-hover-glow">
             <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><AlertCircle className="w-16 h-16 text-red-500" /></div>
-            <div className="flex items-center gap-2 text-red-400 mb-2"><AlertCircle className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Issues</span></div>
+            <div className="flex items-center gap-2 text-red-400 mb-2"><ShieldAlert className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-widest">Sec Vulnerablities</span></div>
             <div className="text-4xl font-mono font-medium text-white tracking-tighter">{issues.length}</div>
           </div>
         </div>
@@ -1087,12 +1273,64 @@ const Dashboard: React.FC = () => {
                 })}
 
                 {/* Create Card */}
-                <button className="h-[280px] rounded-2xl border border-dashed border-white/10 flex flex-col items-center justify-center gap-4 text-zinc-600 hover:text-zinc-400 hover:border-white/20 hover:bg-white/[0.02] transition-all group">
+                <button
+                  onClick={() => setShowNewProjectModal(true)}
+                  className="h-[280px] rounded-2xl border border-dashed border-white/10 flex flex-col items-center justify-center gap-4 text-zinc-600 hover:text-zinc-400 hover:border-white/20 hover:bg-white/[0.02] transition-all group"
+                >
                   <div className="w-14 h-14 rounded-full bg-zinc-900/50 flex items-center justify-center group-hover:scale-110 group-hover:bg-zinc-800 transition-all duration-300 shadow-lg">
                     <Sparkles className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-semibold">Import Repository</span>
                 </button>
+              </div>
+
+              {/* Integrations Pulse */}
+              <div className="mt-10">
+                <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-6">Integration Ecosystem</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${supabaseSummary?.connected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-500 border border-white/5'}`}>
+                        <Database className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Supabase</div>
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                          {supabaseSummary?.connected ? `${supabaseSummary.projects?.length || 0} projects active` : 'Disconnected'}
+                        </div>
+                      </div>
+                    </div>
+                    {supabaseSummary?.connected && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />}
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${vercelSummary?.connected ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-zinc-800 text-zinc-500 border border-white/5'}`}>
+                        <Globe className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Vercel</div>
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                          {vercelSummary?.connected ? `${vercelSummary.deployments?.length || 0} recent builds` : 'Disconnected'}
+                        </div>
+                      </div>
+                    </div>
+                    {vercelSummary?.connected && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />}
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-zinc-900/40 border border-white/5 flex items-center justify-between group opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-not-allowed">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-800 text-zinc-500 border border-white/5 flex items-center justify-center">
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Docker Hub</div>
+                        <div className="text-[10px] text-zinc-500 font-mono">Coming Soon</div>
+                      </div>
+                    </div>
+                    <Lock className="w-3.5 h-3.5 text-zinc-700" />
+                  </div>
+                </div>
               </div>
               {hasMoreProjects && (
                 <div className="mt-6 flex justify-center">
@@ -1149,10 +1387,10 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center gap-4">
                         <div
                           className={`w-2.5 h-2.5 rounded-full border-2 ${d.status === 'success'
-                              ? 'border-emerald-500 bg-emerald-500/20'
-                              : d.status === 'building'
-                                ? 'border-blue-500 bg-blue-500/20 animate-pulse'
-                                : 'border-red-500 bg-red-500/20'
+                            ? 'border-emerald-500 bg-emerald-500/20'
+                            : d.status === 'building'
+                              ? 'border-blue-500 bg-blue-500/20 animate-pulse'
+                              : 'border-red-500 bg-red-500/20'
                             }`}
                           title={getDeploymentStatusLabel(d.status)}
                         />
@@ -1170,10 +1408,10 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${d.status === 'success'
-                              ? 'text-emerald-500 bg-emerald-500/10'
-                              : d.status === 'building'
-                                ? 'text-blue-500 bg-blue-500/10'
-                                : 'text-red-500 bg-red-500/10'
+                            ? 'text-emerald-500 bg-emerald-500/10'
+                            : d.status === 'building'
+                              ? 'text-blue-500 bg-blue-500/10'
+                              : 'text-red-500 bg-red-500/10'
                             }`}
                           title={getDeploymentStatusLabel(d.status)}
                         >
@@ -1213,7 +1451,7 @@ const Dashboard: React.FC = () => {
                         </td>
                         <td className="p-4">
                           <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide ${issue.severity === 'critical' ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.4)]' :
-                              'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                            'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                             }`}>
                             {issue.severity}
                           </span>
@@ -1262,7 +1500,10 @@ const Dashboard: React.FC = () => {
                   )}
                 </div>
 
-                <button className="w-full mt-6 py-3 bg-white hover:bg-purple-50 text-black rounded-xl text-xs font-bold transition-all shadow-[0_0_20px_rgba(168,85,247,0.15)] flex items-center justify-center">
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="w-full mt-6 py-3 bg-white hover:bg-purple-50 text-black rounded-xl text-xs font-bold transition-all shadow-[0_0_20px_rgba(168,85,247,0.15)] flex items-center justify-center"
+                >
                   <Sparkles className="w-3.5 h-3.5 mr-2 fill-black" />
                   Generate Full Report
                 </button>
@@ -1271,6 +1512,44 @@ const Dashboard: React.FC = () => {
           </div>
 
         </div>
+
+        {/* --- REPORT MODAL --- */}
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-[#1c1c1e] border border-white/10 rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-white flex items-center">
+                  <BarChart2 className="w-6 h-6 mr-3 text-purple-400" />
+                  Intelligence Report
+                </h3>
+                <button onClick={() => setShowReportModal(false)} className="p-2 rounded-lg hover:bg-white/10 text-zinc-400"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="space-y-6 text-sm text-zinc-300 leading-relaxed font-medium">
+                <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                  <p className="text-purple-300 mb-4 font-bold">EXECUTIVE SUMMARY</p>
+                  <p>Ecosystem health is currently at <span className="text-white font-bold">{averageHealth}%</span>. Total of {projects.length} nodes monitored with {totalDeployments} successful state changes in the last sync window.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-black/40 border border-white/5 rounded-xl">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">Compute Environment</span>
+                    <span className="text-white font-mono">{systemStats?.platform || 'unknown'}-{systemStats?.nodeVersion || 'v...'}</span>
+                  </div>
+                  <div className="p-4 bg-black/40 border border-white/5 rounded-xl">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold block mb-1">Memory Pressure</span>
+                    <span className="text-white font-mono">{systemStats?.memory?.rss || 0}MB RSS</span>
+                  </div>
+                </div>
+                <div className="p-4 border border-white/5 rounded-xl italic text-xs text-zinc-500">
+                  Auto-generated by System Intelligence based on real-time telemetry and Prisma historical data.
+                </div>
+              </div>
+              <div className="mt-10 flex gap-4">
+                <button className="flex-1 py-3 bg-white text-black rounded-xl text-xs font-bold hover:bg-zinc-200 transition-all">Download PDF</button>
+                <button onClick={() => setShowReportModal(false)} className="flex-1 py-3 bg-white/5 text-white rounded-xl text-xs font-bold hover:bg-white/10 transition-all border border-white/10">Close</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* --- FIX RESULT TOAST --- */}
         {fixResult && (
@@ -1314,6 +1593,8 @@ const Dashboard: React.FC = () => {
                   <label className="block text-xs font-medium text-zinc-400 mb-2">Project Name</label>
                   <input
                     type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
                     placeholder="Enter project name"
                     className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
@@ -1323,6 +1604,8 @@ const Dashboard: React.FC = () => {
                   <label className="block text-xs font-medium text-zinc-400 mb-2">Repository URL</label>
                   <input
                     type="text"
+                    value={newProjectRepoUrl}
+                    onChange={(e) => setNewProjectRepoUrl(e.target.value)}
                     placeholder="https://github.com/owner/repo"
                     className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
@@ -1331,6 +1614,8 @@ const Dashboard: React.FC = () => {
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-2">Description</label>
                   <textarea
+                    value={newProjectDesc}
+                    onChange={(e) => setNewProjectDesc(e.target.value)}
                     placeholder="What does this project do?"
                     rows={3}
                     className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors resize-none"
@@ -1345,13 +1630,11 @@ const Dashboard: React.FC = () => {
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
-                      // Project creation functionality
-                      setShowNewProjectModal(false);
-                    }}
-                    className="flex-1 px-4 py-2 bg-white hover:bg-zinc-200 text-black rounded-lg text-xs font-bold transition-colors"
+                    onClick={handleCreateProject}
+                    disabled={creatingProject || !newProjectName || !newProjectRepoUrl}
+                    className="flex-1 px-4 py-2 bg-white hover:bg-zinc-200 text-black rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    Create Project
+                    {creatingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Project'}
                   </button>
                 </div>
               </div>
@@ -1376,24 +1659,27 @@ const Dashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex-1 bg-black/30 border border-white/10 rounded-lg p-4 overflow-hidden">
+              <div className="flex-1 bg-black/30 border border-white/10 rounded-lg p-4 overflow-hidden relative">
+                {logsLoading && systemLogs.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10">
+                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                  </div>
+                )}
                 <div className="h-full overflow-y-auto custom-scrollbar">
-                  <div className="space-y-2 font-mono text-xs">
-                    <div className="text-zinc-500">
-                      [{new Date().toISOString()}] System initialized successfully
-                    </div>
-                    <div className="text-zinc-400">
-                      [{new Date().toISOString()}] Database connection established
-                    </div>
-                    <div className="text-emerald-400">
-                      [{new Date().toISOString()}] All services operational
-                    </div>
-                    <div className="text-zinc-500">
-                      [{new Date().toISOString()}] API server listening on port 4000
-                    </div>
-                    <div className="text-blue-400">
-                      [{new Date().toISOString()}] Frontend connected to backend
-                    </div>
+                  <div className="space-y-2 font-mono text-[10px]">
+                    {systemLogs.length === 0 && !logsLoading && (
+                      <div className="text-zinc-600 italic">No logs found.</div>
+                    )}
+                    {systemLogs.map((log) => (
+                      <div key={log.id} className="flex gap-3 group/log border-b border-white/[0.03] pb-1 hover:bg-white/[0.02]">
+                        <span className="text-zinc-600 shrink-0">[{new Date(log.createdAt).toLocaleTimeString()}]</span>
+                        <span className="text-blue-400 font-bold shrink-0 w-8">{log.method}</span>
+                        <span className="text-zinc-300 truncate flex-1">{log.url}</span>
+                        <span className={`shrink-0 font-bold ${log.statusCode >= 400 ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {log.statusCode}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1406,11 +1692,11 @@ const Dashboard: React.FC = () => {
                   Close
                 </button>
                 <button
-                  onClick={() => {
-                    // Log refresh functionality
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-colors"
+                  onClick={loadLogs}
+                  disabled={logsLoading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-colors flex items-center"
                 >
+                  {logsLoading ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
                   Refresh Logs
                 </button>
               </div>

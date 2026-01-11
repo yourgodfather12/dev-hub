@@ -1,25 +1,79 @@
 import { ViewState } from './types';
-import { 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   Lightbulb,
   Database,
   Triangle,
   Container,
   CreditCard,
-  Brain,
-  Network
+  Bot,
+  Wrench,
+  Factory,
 } from 'lucide-react';
+import { ViewState } from './types';
 
-export const NAV_ITEMS: { id: ViewState; label: string; icon: any; theme: 'sky' | 'amber' | 'indigo' | 'emerald' | 'zinc' | 'blue' | 'violet' | 'orange'; }[] = [
-  { id: ViewState.DASHBOARD, label: 'Command Center', icon: LayoutDashboard, theme: 'sky' },
-  { id: ViewState.APP_IDEAS, label: 'Vibe Coder', icon: Lightbulb, theme: 'amber' },
-  { id: ViewState.API_EXPLORER, label: 'API Explorer', icon: Network, theme: 'indigo' },
-  { id: ViewState.SUPABASE, label: 'Supabase', icon: Database, theme: 'emerald' },
-  { id: ViewState.VERCEL, label: 'Vercel', icon: Triangle, theme: 'zinc' },
-  { id: ViewState.DOCKER, label: 'Docker', icon: Container, theme: 'blue' },
-  { id: ViewState.STRIPE, label: 'Stripe', icon: CreditCard, theme: 'violet' },
-  { id: ViewState.HUGGING_FACE, label: 'Hugging Face', icon: Brain, theme: 'orange' },
-];
+export const NAV_ITEMS = [
+  {
+    id: ViewState.DASHBOARD,
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    theme: 'sky',
+  },
+  {
+    id: ViewState.PROJECT_STUDIO,
+    label: 'SaaS Factory',
+    icon: Factory,
+    theme: 'pink',
+  },
+  {
+    id: ViewState.APP_IDEAS,
+    label: 'App Ideas',
+    icon: Lightbulb,
+    theme: 'amber',
+  },
+  {
+    id: ViewState.API_EXPLORER,
+    label: 'API Explorer',
+    icon: Plug,
+    theme: 'emerald',
+  },
+  {
+    id: ViewState.SUPABASE,
+    label: 'Supabase',
+    icon: Database,
+    theme: 'emerald',
+  },
+  {
+    id: ViewState.VERCEL,
+    label: 'Vercel',
+    icon: Triangle,
+    theme: 'zinc',
+  },
+  {
+    id: ViewState.DOCKER,
+    label: 'Docker',
+    icon: Container,
+    theme: 'blue',
+  },
+  {
+    id: ViewState.STRIPE,
+    label: 'Stripe',
+    icon: CreditCard,
+    theme: 'violet',
+  },
+  {
+    id: ViewState.HUGGING_FACE,
+    label: 'Hugging Face',
+    icon: Bot,
+    theme: 'orange',
+  },
+  {
+    id: ViewState.PROJECT_WORKSHOP,
+    label: 'Workshop',
+    icon: Wrench,
+    theme: 'indigo',
+  },
+] as const;
 
 export const INTEGRATIONS: Partial<Record<ViewState, { title: string; icon: any; description: string; color: string; gradient: string }>> = {
   [ViewState.SUPABASE]: {
