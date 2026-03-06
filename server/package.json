@@ -4,11 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prisma:generate": "prisma generate",
+    "predev": "npm run prisma:generate",
     "dev": "ts-node src/server.ts",
+    "prebuild": "npm run prisma:generate",
     "build": "tsc",
+    "prestart": "npm run prisma:generate",
     "start": "node dist/server.js",
     "seed": "ts-node src/seed.ts",
     "seed:repo-scans": "ts-node src/scripts/seedRepoScans.ts",
+    "pretest": "npm run prisma:generate",
     "test": "ts-node src/server.test.ts"
   },
   "keywords": [],
