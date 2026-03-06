@@ -1,9 +1,8 @@
-
 export enum ProjectStatus {
   ACTIVE = 'Active',
   MAINTENANCE = 'Maintenance',
   ARCHIVED = 'Archived',
-  CRITICAL = 'Critical'
+  CRITICAL = 'Critical',
 }
 
 export interface Project {
@@ -44,14 +43,16 @@ export interface ChatMessage {
 
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
+  PROJECT_STUDIO = 'PROJECT_STUDIO',
   ARCHI = 'ARCHI',
+  APP_IDEAS = 'APP_IDEAS',
   API_EXPLORER = 'API_EXPLORER',
   SUPABASE = 'SUPABASE',
   VERCEL = 'VERCEL',
   DOCKER = 'DOCKER',
   STRIPE = 'STRIPE',
   HUGGING_FACE = 'HUGGING_FACE',
-  PROJECT_WORKSHOP = 'PROJECT_WORKSHOP'
+  PROJECT_WORKSHOP = 'PROJECT_WORKSHOP',
 }
 
 export type ArchiRunStatus = 'idle' | 'running' | 'success' | 'warning';
@@ -139,6 +140,8 @@ export interface AuditCategory {
   findings: string[];
 }
 
+export type RepoScanSeverity = 'blocker' | 'high' | 'medium' | 'low';
+
 export interface RepoAudit {
   projectId: string;
   timestamp: string;
@@ -156,8 +159,6 @@ export interface RepoAudit {
     message: string;
   }[];
 }
-
-export type RepoScanSeverity = 'blocker' | 'high' | 'medium' | 'low';
 
 export interface RepoScanCheckResult {
   checkId: string;
