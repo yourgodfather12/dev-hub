@@ -18,7 +18,7 @@ import {
     MoreVertical,
     Plus
 } from 'lucide-react';
-import { Project, ProjectStatus, Task, TaskStatus } from '../types';
+import { Project } from '../types';
 import { fetchProjects } from '../services/apiClient';
 import Mermaid from './Mermaid';
 
