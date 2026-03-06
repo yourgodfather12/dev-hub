@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import AIEngineer from './components/AIEngineer';
+import ArchiPanel from './components/ArchiPanel';
 import APIExplorer from './components/APIExplorer';
 import SupabasePanel from './components/SupabasePanel';
 import VercelPanel from './components/VercelPanel';
@@ -9,12 +9,11 @@ import DockerPanel from './components/DockerPanel';
 import StripePanel from './components/StripePanel';
 import HuggingFacePanel from './components/HuggingFacePanel';
 import ProjectWorkshop from './components/ProjectWorkshop';
-import ProjectStudio from './components/ProjectStudio';
 import { ViewState } from './types';
 
 const viewComponents: Record<ViewState, React.FC> = {
   [ViewState.DASHBOARD]: Dashboard,
-  [ViewState.APP_IDEAS]: AIEngineer,
+  [ViewState.ARCHI]: ArchiPanel,
   [ViewState.API_EXPLORER]: APIExplorer,
   [ViewState.SUPABASE]: SupabasePanel,
   [ViewState.VERCEL]: VercelPanel,
@@ -22,7 +21,6 @@ const viewComponents: Record<ViewState, React.FC> = {
   [ViewState.STRIPE]: StripePanel,
   [ViewState.HUGGING_FACE]: HuggingFacePanel,
   [ViewState.PROJECT_WORKSHOP]: ProjectWorkshop,
-  [ViewState.PROJECT_STUDIO]: ProjectStudio,
 };
 
 const App: React.FC = () => {

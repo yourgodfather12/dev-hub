@@ -1,0 +1,138 @@
+import { ArchiAgentRole, ArchiQuickAction, ArchiWorkspaceOption } from '../../types';
+
+export const ARCHI_AGENT_ROLES: ArchiAgentRole[] = [
+  {
+    id: 'architect',
+    title: 'Architect',
+    description: 'Design system boundaries, service contracts, and long-term technical strategy.',
+    icon: 'DraftingCompass',
+    capabilities: ['System Design', 'Boundary Mapping', 'ADR Drafting'],
+    accentClass: 'from-cyan-500/25 via-sky-500/15 to-transparent border-cyan-400/30',
+  },
+  {
+    id: 'builder',
+    title: 'Builder',
+    description: 'Convert plans into implementation-ready tasks, patch plans, and delivery checklists.',
+    icon: 'Hammer',
+    capabilities: ['Patch Strategy', 'Implementation', 'Task Breakdown'],
+    accentClass: 'from-violet-500/25 via-fuchsia-500/15 to-transparent border-violet-400/30',
+  },
+  {
+    id: 'qa',
+    title: 'QA',
+    description: 'Validate reliability, edge cases, and regression risk across workflows.',
+    icon: 'ShieldCheck',
+    capabilities: ['Regression Risk', 'Test Coverage', 'Quality Gates'],
+    accentClass: 'from-emerald-500/25 via-teal-500/15 to-transparent border-emerald-400/30',
+  },
+  {
+    id: 'growth',
+    title: 'Growth',
+    description: 'Drive activation experiments, funnel insights, and GTM execution priorities.',
+    icon: 'TrendingUp',
+    capabilities: ['GTM Strategy', 'Experimentation', 'Analytics'],
+    accentClass: 'from-amber-500/25 via-orange-500/15 to-transparent border-amber-400/30',
+  },
+  {
+    id: 'ops',
+    title: 'Ops',
+    description: 'Harden deployment paths, observability, and operating readiness across repos.',
+    icon: 'ServerCog',
+    capabilities: ['Infra Reliability', 'Incident Readiness', 'Runbooks'],
+    accentClass: 'from-indigo-500/25 via-blue-500/15 to-transparent border-indigo-400/30',
+  },
+  {
+    id: 'research',
+    title: 'Research',
+    description: 'Discover options, compare architecture patterns, and summarize trade-offs.',
+    icon: 'ScanSearch',
+    capabilities: ['Option Mapping', 'Benchmarks', 'Trade-off Analysis'],
+    accentClass: 'from-pink-500/25 via-rose-500/15 to-transparent border-pink-400/30',
+  },
+];
+
+export const ARCHI_WORKSPACES: ArchiWorkspaceOption[] = [
+  {
+    id: 'lotpulse',
+    name: 'LotPulse',
+    repoUrl: 'github.com/yourgodfather12/lotpulse',
+    branch: 'main',
+    status: 'synced',
+    lastRun: '14m ago',
+  },
+  {
+    id: 'fansurge',
+    name: 'FanSurge',
+    repoUrl: 'github.com/yourgodfather12/fansurge',
+    branch: 'release/v1',
+    status: 'indexing',
+    lastRun: '42m ago',
+  },
+  {
+    id: 'casecanvas',
+    name: 'CaseCanvas',
+    repoUrl: 'github.com/yourgodfather12/casecanvas',
+    branch: 'develop',
+    status: 'synced',
+    lastRun: '2h ago',
+  },
+  {
+    id: 'architech-apps',
+    name: 'ArchiTech Apps',
+    repoUrl: 'github.com/yourgodfather12/architech-apps',
+    branch: 'main',
+    status: 'attention',
+    lastRun: '1d ago',
+  },
+];
+
+export const ARCHI_QUICK_ACTIONS: ArchiQuickAction[] = [
+  {
+    id: 'audit-blockers',
+    title: 'Audit repo for production blockers',
+    description: 'Find deployment blockers, missing quality gates, and risky dependencies.',
+    prompt: 'Audit this repository for production blockers and propose the highest impact fixes in priority order.',
+    recommendedRoleId: 'qa',
+    actionType: 'audit',
+  },
+  {
+    id: 'compare-patterns',
+    title: 'Compare architecture patterns',
+    description: 'Evaluate alternatives and recommend a target architecture path.',
+    prompt: 'Compare architecture patterns for scalability and team velocity, then recommend a migration path.',
+    recommendedRoleId: 'architect',
+    actionType: 'review',
+  },
+  {
+    id: 'feature-spec',
+    title: 'Generate feature spec',
+    description: 'Create a complete build-ready functional and technical spec.',
+    prompt: 'Generate a feature specification with user stories, acceptance criteria, and technical implementation notes.',
+    recommendedRoleId: 'builder',
+    actionType: 'plan',
+  },
+  {
+    id: 'refactor-plan',
+    title: 'Draft refactor plan',
+    description: 'Break down refactoring into safe, staged implementation milestones.',
+    prompt: 'Draft a staged refactor plan that reduces risk, includes validation checkpoints, and preserves feature parity.',
+    recommendedRoleId: 'builder',
+    actionType: 'patch',
+  },
+  {
+    id: 'deployment-readiness',
+    title: 'Review deployment readiness',
+    description: 'Assess observability, resilience, and release preparedness.',
+    prompt: 'Review deployment readiness including rollback plans, monitoring coverage, and release checklist gaps.',
+    recommendedRoleId: 'ops',
+    actionType: 'review',
+  },
+  {
+    id: 'gtm-plan',
+    title: 'Generate GTM plan',
+    description: 'Create a launch and growth strategy aligned with product maturity.',
+    prompt: 'Generate a 30-day go-to-market plan including channel strategy, positioning, and experiment cadence.',
+    recommendedRoleId: 'growth',
+    actionType: 'plan',
+  },
+];
