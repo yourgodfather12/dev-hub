@@ -8,8 +8,10 @@ import {
   Clock3,
   Cpu,
   DraftingCompass,
+  Factory,
   Gauge,
   Hammer,
+  Lightbulb,
   Loader2,
   Play,
   ScanSearch,
@@ -27,7 +29,11 @@ import {
   ArchiRunStatus,
   ArchiWorkspaceOption,
 } from '../types';
+import AIEngineer from './AIEngineer';
+import ProjectStudio from './ProjectStudio';
 import { ARCHI_AGENT_ROLES, ARCHI_QUICK_ACTIONS, ARCHI_WORKSPACES } from './archi/archiData';
+
+type ArchiWorkspaceMode = 'operator' | 'factory' | 'ideas';
 
 const runTemplates: Record<ArchiQuickAction['actionType'], string[]> = {
   audit: [
@@ -95,108 +101,70 @@ const getLogStyle = (level: ArchiRunLog['level']) => {
   return 'text-zinc-300';
 };
 
-const ArchiPanel: React.FC = () => {
-  const [selectedRoleId, setSelectedRoleId] = useState(ARCHI_AGENT_ROLES[0].id);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(ARCHI_WORKSPACES[0].id);
-  const [taskInput, setTaskInput] = useState('Audit this repository for production blockers and recommend the top fixes.');
-  const [currentAction, setCurrentAction] = useState<ArchiQuickAction['actionType']>('audit');
-  const [activeQuickActionId, setActiveQuickActionId] = useState<string | null>(null);
-  const [runResult, setRunResult] = useState<ArchiRunResult | null>(null);
-  const [recentRuns, setRecentRuns] = useState<ArchiRunResult[]>([]);
+const modeTabs: { id: ArchiWorkspaceMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'operator', label: 'Operator', icon: Brain },
+  { id: 'factory', label: 'SaaS Factory', icon: Factory },
+  { id: 'ideas', label: 'App Ideas', icon: Lightbulb },
+];
 
-  const selectedRole = useMemo(
-    () => ARCHI_AGENT_ROLES.find((role) => role.id === selectedRoleId) ?? ARCHI_AGENT_ROLES[0],
-    [selectedRoleId],
-  );
+const ModeTabs: React.FC<{
+  activeMode: ArchiWorkspaceMode;
+  onSelectMode: (mode: ArchiWorkspaceMode) => void;
+  className?: string;
+}> = ({ activeMode, onSelectMode, className = '' }) => (
+  <div className={`inline-flex p-1 rounded-xl bg-zinc-900 border border-white/10 gap-1 ${className}`}>
+    {modeTabs.map(({ id, label, icon: Icon }) => (
+      <button
+        key={id}
+        onClick={() => onSelectMode(id)}
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+          id === activeMode ? 'bg-cyan-500/20 text-cyan-200' : 'text-zinc-400 hover:text-white hover:bg-white/5'
+        }`}
+      >
+        <Icon className="w-3.5 h-3.5" />
+        {label}
+      </button>
+    ))}
+  </div>
+);
 
-  const selectedWorkspace = useMemo(
-    () => ARCHI_WORKSPACES.find((workspace) => workspace.id === selectedWorkspaceId) ?? ARCHI_WORKSPACES[0],
-    [selectedWorkspaceId],
-  );
+interface OperatorSurfaceProps {
+  selectedRoleId: string;
+  setSelectedRoleId: React.Dispatch<React.SetStateAction<string>>;
+  selectedWorkspaceId: string;
+  setSelectedWorkspaceId: React.Dispatch<React.SetStateAction<string>>;
+  taskInput: string;
+  setTaskInput: React.Dispatch<React.SetStateAction<string>>;
+  currentAction: ArchiQuickAction['actionType'];
+  setCurrentAction: React.Dispatch<React.SetStateAction<ArchiQuickAction['actionType']>>;
+  activeQuickActionId: string | null;
+  applyQuickAction: (action: ArchiQuickAction) => void;
+  runResult: ArchiRunResult | null;
+  runProgress: number;
+  selectedRole: ArchiAgentRole;
+  selectedWorkspace: ArchiWorkspaceOption;
+  recentRuns: ArchiRunResult[];
+  startRun: (actionType: ArchiQuickAction['actionType']) => void;
+}
 
-  const runProgress = useMemo(() => {
-    if (!runResult) return 0;
-    const totalSteps = runTemplates[runResult.actionType].length + 1;
-    return Math.min(100, Math.round((runResult.logs.length / totalSteps) * 100));
-  }, [runResult]);
-
-  useEffect(() => {
-    if (!runResult || runResult.status !== 'running') return;
-
-    const template = runTemplates[runResult.actionType];
-    const nextStep = runResult.logs.length - 1;
-
-    if (nextStep >= template.length) {
-      const completedLog: ArchiRunLog = {
-        id: `${runResult.id}-completed`,
-        level: runResult.actionType === 'audit' ? 'warning' : 'success',
-        message:
-          runResult.actionType === 'audit'
-            ? 'Completed with 3 high-priority findings and 1 blocker requiring immediate attention'
-            : 'Completed successfully with a validated recommendation set ready for execution',
-        timestamp: new Date().toISOString(),
-      };
-
-      setRunResult((prev) => {
-        if (!prev) return prev;
-        const status: ArchiRunStatus = prev.actionType === 'audit' ? 'warning' : 'success';
-        const finalized: ArchiRunResult = {
-          ...prev,
-          status,
-          finishedAt: new Date().toISOString(),
-          summary:
-            prev.actionType === 'audit'
-              ? `Archi identified production blockers in ${selectedWorkspace.name}. Prioritize auth hardening and CI guardrails.`
-              : `Archi generated a complete ${actionLabels[prev.actionType].toLowerCase()} package for ${selectedWorkspace.name}.`,
-          logs: [...prev.logs, completedLog],
-        };
-        setRecentRuns((existing) => [finalized, ...existing.filter((item) => item.id !== finalized.id)].slice(0, 4));
-        return finalized;
-      });
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      const infoLog: ArchiRunLog = {
-        id: `${runResult.id}-${nextStep}`,
-        level: 'info',
-        message: template[nextStep],
-        timestamp: new Date().toISOString(),
-      };
-      setRunResult((prev) => (prev ? { ...prev, logs: [...prev.logs, infoLog] } : prev));
-    }, 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [runResult, selectedWorkspace.name]);
-
-  const startRun = (actionType: ArchiQuickAction['actionType']) => {
-    const newRun: ArchiRunResult = {
-      id: `${Date.now()}`,
-      startedAt: new Date().toISOString(),
-      status: 'running',
-      actionType,
-      roleId: selectedRole.id,
-      workspaceId: selectedWorkspace.id,
-      task: taskInput.trim(),
-      logs: [
-        {
-          id: `${Date.now()}-init`,
-          level: 'info',
-          message: `Mission accepted by ${selectedRole.title} agent for ${selectedWorkspace.name}`,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    };
-    setRunResult(newRun);
-  };
-
-  const applyQuickAction = (action: ArchiQuickAction) => {
-    setTaskInput(action.prompt);
-    setSelectedRoleId(action.recommendedRoleId);
-    setCurrentAction(action.actionType);
-    setActiveQuickActionId(action.id);
-  };
-
+const OperatorSurface: React.FC<OperatorSurfaceProps> = ({
+  selectedRoleId,
+  setSelectedRoleId,
+  selectedWorkspaceId,
+  setSelectedWorkspaceId,
+  taskInput,
+  setTaskInput,
+  currentAction,
+  setCurrentAction,
+  activeQuickActionId,
+  applyQuickAction,
+  runResult,
+  runProgress,
+  selectedRole,
+  selectedWorkspace,
+  recentRuns,
+  startRun,
+}) => {
   const metricValues = [
     { label: 'Active Agents', value: '6', icon: Bot },
     { label: 'Runs Today', value: '28', icon: Activity },
@@ -218,7 +186,8 @@ const ArchiPanel: React.FC = () => {
               <div>
                 <h1 className="text-4xl font-black text-white tracking-tight">Archi</h1>
                 <p className="mt-2 text-zinc-300 max-w-xl leading-relaxed">
-                  Command OpenClaw agents, launch repo workflows, and run architecture-grade missions from a single control surface built for high-velocity teams.
+                  Command OpenClaw agents, launch repo workflows, and run architecture-grade missions from a single
+                  control surface built for high-velocity teams.
                 </p>
               </div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-400/30 bg-emerald-500/10 text-emerald-300 text-xs font-semibold">
@@ -253,6 +222,7 @@ const ArchiPanel: React.FC = () => {
               {ARCHI_AGENT_ROLES.map((role) => {
                 const Icon = roleIconMap[role.icon];
                 const isSelected = role.id === selectedRoleId;
+
                 return (
                   <button
                     key={role.id}
@@ -273,7 +243,10 @@ const ArchiPanel: React.FC = () => {
                     <p className="text-xs text-zinc-400 mt-1 min-h-[34px]">{role.description}</p>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {role.capabilities.map((capability) => (
-                        <span key={capability} className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-md bg-black/40 border border-white/10 text-zinc-300">
+                        <span
+                          key={capability}
+                          className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-md bg-black/40 border border-white/10 text-zinc-300"
+                        >
                           {capability}
                         </span>
                       ))}
@@ -314,6 +287,7 @@ const ArchiPanel: React.FC = () => {
               <h2 className="text-lg font-semibold text-white">Mission Composer</h2>
               <WandSparkles className="w-4 h-4 text-cyan-300" />
             </div>
+
             <label className="block space-y-2">
               <span className="text-xs uppercase tracking-wider text-zinc-500">Workspace</span>
               <select
@@ -328,23 +302,29 @@ const ArchiPanel: React.FC = () => {
                 ))}
               </select>
             </label>
+
             <div className="grid md:grid-cols-2 gap-2">
               {ARCHI_WORKSPACES.map((workspace) => (
                 <button
                   key={workspace.id}
                   onClick={() => setSelectedWorkspaceId(workspace.id)}
                   className={`text-left rounded-lg border p-3 transition-colors ${
-                    selectedWorkspaceId === workspace.id ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-white/10 bg-black/30'
+                    selectedWorkspaceId === workspace.id
+                      ? 'border-cyan-400/40 bg-cyan-500/10'
+                      : 'border-white/10 bg-black/30'
                   }`}
                 >
                   <p className="text-sm font-medium text-white">{workspace.name}</p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">{workspace.repoUrl}</p>
-                  <span className={`inline-flex mt-2 px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-md border ${workspaceStatusTone[workspace.status]}`}>
+                  <span
+                    className={`inline-flex mt-2 px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-md border ${workspaceStatusTone[workspace.status]}`}
+                  >
                     {workspace.status}
                   </span>
                 </button>
               ))}
             </div>
+
             <label className="block space-y-2">
               <span className="text-xs uppercase tracking-wider text-zinc-500">Mission brief</span>
               <textarea
@@ -355,6 +335,7 @@ const ArchiPanel: React.FC = () => {
                 placeholder="Tell Archi what to execute..."
               />
             </label>
+
             <div className="grid sm:grid-cols-2 gap-2">
               {(Object.keys(actionLabels) as ArchiQuickAction['actionType'][]).map((actionType) => (
                 <button
@@ -370,6 +351,7 @@ const ArchiPanel: React.FC = () => {
                 </button>
               ))}
             </div>
+
             <div className="flex items-center justify-between rounded-lg border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
               <span>Selected Role: {selectedRole.title}</span>
               <button
@@ -377,7 +359,11 @@ const ArchiPanel: React.FC = () => {
                 disabled={!taskInput.trim() || runResult?.status === 'running'}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-cyan-400 text-black font-semibold hover:bg-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {runResult?.status === 'running' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                {runResult?.status === 'running' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
                 Launch Mission
               </button>
             </div>
@@ -386,8 +372,14 @@ const ArchiPanel: React.FC = () => {
           <div className="rounded-2xl border border-white/10 bg-zinc-950/80 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Run Console</h2>
-              <div className={`inline-flex items-center gap-2 text-[11px] uppercase tracking-wider border rounded-full px-2.5 py-1 ${statusTone[runResult?.status ?? 'idle']}`}>
-                {runResult?.status === 'running' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Clock3 className="w-3 h-3" />}
+              <div
+                className={`inline-flex items-center gap-2 text-[11px] uppercase tracking-wider border rounded-full px-2.5 py-1 ${statusTone[runResult?.status ?? 'idle']}`}
+              >
+                {runResult?.status === 'running' ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Clock3 className="w-3 h-3" />
+                )}
                 {runResult?.status ?? 'idle'}
               </div>
             </div>
@@ -396,25 +388,39 @@ const ArchiPanel: React.FC = () => {
               <div className="h-[320px] rounded-xl border border-dashed border-white/15 bg-black/40 flex items-center justify-center text-center p-6">
                 <div>
                   <Bot className="w-10 h-10 mx-auto text-zinc-600" />
-                  <p className="text-sm text-zinc-400 mt-3">No runs yet. Launch a mission to stream OpenClaw execution output.</p>
+                  <p className="text-sm text-zinc-400 mt-3">
+                    No runs yet. Launch a mission to stream OpenClaw execution output.
+                  </p>
                 </div>
               </div>
             ) : (
               <>
                 <div className="rounded-xl border border-white/10 bg-black/40 p-3 space-y-1 text-xs">
-                  <p className="text-zinc-400">Workspace: <span className="text-white">{selectedWorkspace.name}</span></p>
-                  <p className="text-zinc-400">Action: <span className="text-white">{actionLabels[runResult.actionType]}</span></p>
-                  <p className="text-zinc-400">Started: <span className="text-white">{new Date(runResult.startedAt).toLocaleTimeString()}</span></p>
+                  <p className="text-zinc-400">
+                    Workspace: <span className="text-white">{selectedWorkspace.name}</span>
+                  </p>
+                  <p className="text-zinc-400">
+                    Action: <span className="text-white">{actionLabels[runResult.actionType]}</span>
+                  </p>
+                  <p className="text-zinc-400">
+                    Started:{' '}
+                    <span className="text-white">{new Date(runResult.startedAt).toLocaleTimeString()}</span>
+                  </p>
                 </div>
+
                 <div>
                   <div className="flex items-center justify-between text-[11px] text-zinc-500 mb-1">
                     <span>Execution progress</span>
                     <span>{runProgress}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500" style={{ width: `${runProgress}%` }} />
+                    <div
+                      className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+                      style={{ width: `${runProgress}%` }}
+                    />
                   </div>
                 </div>
+
                 <div className="h-[210px] rounded-xl border border-white/10 bg-black/60 p-3 overflow-y-auto custom-scrollbar font-mono text-xs space-y-2">
                   {runResult.logs.map((log) => (
                     <p key={log.id} className={getLogStyle(log.level)}>
@@ -423,8 +429,15 @@ const ArchiPanel: React.FC = () => {
                     </p>
                   ))}
                 </div>
+
                 {runResult.summary && (
-                  <div className={`rounded-xl border p-3 ${runResult.status === 'warning' ? 'border-amber-400/30 bg-amber-500/10' : 'border-emerald-400/30 bg-emerald-500/10'}`}>
+                  <div
+                    className={`rounded-xl border p-3 ${
+                      runResult.status === 'warning'
+                        ? 'border-amber-400/30 bg-amber-500/10'
+                        : 'border-emerald-400/30 bg-emerald-500/10'
+                    }`}
+                  >
                     <p className="text-xs uppercase tracking-wider text-zinc-500 mb-1">Result summary</p>
                     <p className="text-sm text-zinc-100">{runResult.summary}</p>
                   </div>
@@ -445,7 +458,11 @@ const ArchiPanel: React.FC = () => {
                 <div key={workspace.id} className="rounded-xl border border-white/10 bg-black/40 p-3">
                   <div className="flex justify-between items-center">
                     <p className="text-sm font-semibold text-white">{workspace.name}</p>
-                    <span className={`px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-md border ${workspaceStatusTone[workspace.status]}`}>{workspace.status}</span>
+                    <span
+                      className={`px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-md border ${workspaceStatusTone[workspace.status]}`}
+                    >
+                      {workspace.status}
+                    </span>
                   </div>
                   <p className="text-xs text-zinc-500 mt-1">Branch: {workspace.branch}</p>
                   <p className="text-xs text-zinc-400 mt-2">Last run: {workspace.lastRun}</p>
@@ -465,7 +482,11 @@ const ArchiPanel: React.FC = () => {
                     <p className="text-sm text-white font-medium">{actionLabels[run.actionType]}</p>
                     <p className="text-xs text-zinc-500 mt-1">{new Date(run.startedAt).toLocaleString()}</p>
                     <p className="text-xs mt-2 inline-flex items-center gap-1 text-zinc-300">
-                      {run.status === 'warning' ? <AlertTriangle className="w-3.5 h-3.5 text-amber-300" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />}
+                      {run.status === 'warning' ? (
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-300" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                      )}
                       {run.status === 'warning' ? 'Completed with findings' : 'Completed successfully'}
                     </p>
                   </div>
@@ -474,6 +495,157 @@ const ArchiPanel: React.FC = () => {
             </div>
           </div>
         </section>
+      </div>
+    </div>
+  );
+};
+
+const ArchiPanel: React.FC = () => {
+  const [activeMode, setActiveMode] = useState<ArchiWorkspaceMode>('operator');
+  const [selectedRoleId, setSelectedRoleId] = useState(ARCHI_AGENT_ROLES[0].id);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(ARCHI_WORKSPACES[0].id);
+  const [taskInput, setTaskInput] = useState(
+    'Audit this repository for production blockers and recommend the top fixes.',
+  );
+  const [currentAction, setCurrentAction] = useState<ArchiQuickAction['actionType']>('audit');
+  const [activeQuickActionId, setActiveQuickActionId] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<ArchiRunResult | null>(null);
+  const [recentRuns, setRecentRuns] = useState<ArchiRunResult[]>([]);
+
+  const selectedRole = useMemo(
+    () => ARCHI_AGENT_ROLES.find((role) => role.id === selectedRoleId) ?? ARCHI_AGENT_ROLES[0],
+    [selectedRoleId],
+  );
+
+  const selectedWorkspace = useMemo(
+    () => ARCHI_WORKSPACES.find((workspace) => workspace.id === selectedWorkspaceId) ?? ARCHI_WORKSPACES[0],
+    [selectedWorkspaceId],
+  );
+
+  const runProgress = useMemo(() => {
+    if (!runResult) return 0;
+    const totalSteps = runTemplates[runResult.actionType].length + 1;
+    return Math.min(100, Math.round((runResult.logs.length / totalSteps) * 100));
+  }, [runResult]);
+
+  useEffect(() => {
+    if (!runResult || runResult.status !== 'running') return;
+
+    const template = runTemplates[runResult.actionType];
+    const nextStep = runResult.logs.length - 1;
+
+    if (nextStep >= template.length) {
+      const completedLog: ArchiRunLog = {
+        id: `${runResult.id}-completed`,
+        level: runResult.actionType === 'audit' ? 'warning' : 'success',
+        message:
+          runResult.actionType === 'audit'
+            ? 'Completed with 3 high-priority findings and 1 blocker requiring immediate attention'
+            : 'Completed successfully with a validated recommendation set ready for execution',
+        timestamp: new Date().toISOString(),
+      };
+
+      setRunResult((prev) => {
+        if (!prev) return prev;
+
+        const status: ArchiRunStatus = prev.actionType === 'audit' ? 'warning' : 'success';
+        const finalized: ArchiRunResult = {
+          ...prev,
+          status,
+          finishedAt: new Date().toISOString(),
+          summary:
+            prev.actionType === 'audit'
+              ? `Archi identified production blockers in ${selectedWorkspace.name}. Prioritize auth hardening and CI guardrails.`
+              : `Archi generated a complete ${actionLabels[prev.actionType].toLowerCase()} package for ${selectedWorkspace.name}.`,
+          logs: [...prev.logs, completedLog],
+        };
+
+        setRecentRuns((existing) =>
+          [finalized, ...existing.filter((item) => item.id !== finalized.id)].slice(0, 4),
+        );
+
+        return finalized;
+      });
+
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const infoLog: ArchiRunLog = {
+        id: `${runResult.id}-${nextStep}`,
+        level: 'info',
+        message: template[nextStep],
+        timestamp: new Date().toISOString(),
+      };
+
+      setRunResult((prev) => (prev ? { ...prev, logs: [...prev.logs, infoLog] } : prev));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [runResult, selectedWorkspace.name]);
+
+  const startRun = (actionType: ArchiQuickAction['actionType']) => {
+    const now = Date.now();
+
+    const newRun: ArchiRunResult = {
+      id: `${now}`,
+      startedAt: new Date().toISOString(),
+      status: 'running',
+      actionType,
+      roleId: selectedRole.id,
+      workspaceId: selectedWorkspace.id,
+      task: taskInput.trim(),
+      logs: [
+        {
+          id: `${now}-init`,
+          level: 'info',
+          message: `Mission accepted by ${selectedRole.title} agent for ${selectedWorkspace.name}`,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    setRunResult(newRun);
+  };
+
+  const applyQuickAction = (action: ArchiQuickAction) => {
+    setTaskInput(action.prompt);
+    setSelectedRoleId(action.recommendedRoleId);
+    setCurrentAction(action.actionType);
+    setActiveQuickActionId(action.id);
+  };
+
+  const embeddedMode = activeMode !== 'operator';
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="px-8 pt-6 pb-4 border-b border-white/10 bg-black/40">
+        <ModeTabs activeMode={activeMode} onSelectMode={setActiveMode} />
+      </div>
+
+      <div className={embeddedMode ? 'flex-1 min-h-0' : 'flex-1'}>
+        {activeMode === 'factory' && <ProjectStudio />}
+        {activeMode === 'ideas' && <AIEngineer />}
+        {activeMode === 'operator' && (
+          <OperatorSurface
+            selectedRoleId={selectedRoleId}
+            setSelectedRoleId={setSelectedRoleId}
+            selectedWorkspaceId={selectedWorkspaceId}
+            setSelectedWorkspaceId={setSelectedWorkspaceId}
+            taskInput={taskInput}
+            setTaskInput={setTaskInput}
+            currentAction={currentAction}
+            setCurrentAction={setCurrentAction}
+            activeQuickActionId={activeQuickActionId}
+            applyQuickAction={applyQuickAction}
+            runResult={runResult}
+            runProgress={runProgress}
+            selectedRole={selectedRole}
+            selectedWorkspace={selectedWorkspace}
+            recentRuns={recentRuns}
+            startRun={startRun}
+          />
+        )}
       </div>
     </div>
   );

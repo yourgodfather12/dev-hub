@@ -1,7 +1,6 @@
 import { ViewState } from './types';
 import {
   LayoutDashboard,
-  Lightbulb,
   Plug,
   Database,
   Triangle,
@@ -11,6 +10,7 @@ import {
   Brain,
   Wrench,
   Factory,
+  Lightbulb,
   Cpu,
 } from 'lucide-react';
 
@@ -83,7 +83,18 @@ export const NAV_ITEMS = [
   },
 ] as const;
 
-export const INTEGRATIONS: Partial<Record<ViewState, { title: string; icon: any; description: string; color: string; gradient: string }>> = {
+export const INTEGRATIONS: Partial<
+  Record<
+    ViewState,
+    {
+      title: string;
+      icon: any;
+      description: string;
+      color: string;
+      gradient: string;
+    }
+  >
+> = {
   [ViewState.SUPABASE]: {
     title: 'Supabase',
     icon: Database,
@@ -125,5 +136,19 @@ export const INTEGRATIONS: Partial<Record<ViewState, { title: string; icon: any;
     description: 'OpenClaw operator center for orchestrating agents, audits, and execution workflows.',
     color: 'bg-cyan-500',
     gradient: 'bg-cyan-500',
+  },
+  [ViewState.PROJECT_STUDIO]: {
+    title: 'SaaS Factory',
+    icon: Factory,
+    description: 'Plan, organize, and operate multiple SaaS products from one execution layer.',
+    color: 'bg-pink-500',
+    gradient: 'bg-pink-500',
+  },
+  [ViewState.APP_IDEAS]: {
+    title: 'App Ideas',
+    icon: Lightbulb,
+    description: 'Generate, rank, and refine product ideas based on leverage, demand, and buildability.',
+    color: 'bg-amber-500',
+    gradient: 'bg-amber-500',
   },
 };
