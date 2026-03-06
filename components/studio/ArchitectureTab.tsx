@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from 'react';
 import { Plus, Database, Key, Type, Calendar, Hash, ToggleLeft, FileText, Trash2, Download, Code, Play, Eye, Box } from 'lucide-react';
 import { useStudio } from '../../contexts/StudioContext';
 import { studioService } from '../../services/studioService';

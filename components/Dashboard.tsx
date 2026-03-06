@@ -41,6 +41,9 @@ import {
   GitPullRequest,
   ExternalLink,
   RefreshCw,
+  Target,
+  Rocket,
+  Database,
 } from 'lucide-react';
 import {
   analyzeProjectHealth,
