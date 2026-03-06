@@ -11,7 +11,7 @@
 - ✅ **docker-compose.yml** - Development setup (separate frontend/backend)
 - ✅ **docker-compose.prod.yml** - Production setup (all-in-one)
 - ✅ **.dockerignore** - Optimized build context
-- ✅ **.env** - Real environment variables (with your credentials)
+- ✅ **.env.example** - Environment template for your local credentials
 - ✅ **docker.bat** / **docker.sh** - Helper scripts for easy management
 
 ### Features
@@ -142,7 +142,7 @@ dev-hub/
 
 ### Environment Variables
 
-The `.env` file is pre-configured with your credentials:
+Create a local `.env` file from `.env.example` and add your own credentials:
 
 ```ini
 # API
@@ -150,17 +150,17 @@ PORT=4000
 API_ADMIN_TOKEN=devhub-local-admin-token
 
 # GitHub (✅ Configured)
-GITHUB_TOKEN=ghp_TUAd9HqN...
+GITHUB_TOKEN=ghp_your_github_token
 GITHUB_OWNER=yourgodfather12
 
 # Hugging Face (✅ Configured)
-HF_API_KEY=hf_mTqkKgoVbz...
+HF_API_KEY=hf_your_huggingface_key
 
 # Vercel (✅ Configured)
-VERCEL_TOKEN=arwUKzL5Fv...
+VERCEL_TOKEN=your_vercel_token
 
 # Supabase (✅ Configured)
-SUPABASE_ACCESS_TOKEN=sbp_fccb5dc...
+SUPABASE_ACCESS_TOKEN=sbp_your_supabase_token
 ```
 
 ### Ports

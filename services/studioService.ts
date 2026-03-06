@@ -194,7 +194,7 @@ class StudioService {
 
     // GitHub
     async getGithubRepos(): Promise<any[]> {
-        const response = await apiClient.get('/github/repos');
+        const response = await apiClient.get('/api/github/repos');
         if (response.status === 'success') {
             return response.data;
         }
@@ -202,7 +202,7 @@ class StudioService {
     }
 
     async getGithubFiles(owner: string, repo: string, ref: string = 'main'): Promise<any> {
-        const response = await apiClient.get(`/github/repo/${owner}/${repo}/files?ref=${ref}`);
+        const response = await apiClient.get(`/api/github/repo/${owner}/${repo}/files?ref=${ref}`);
         if (response.status === 'success') {
             return response.data;
         }
@@ -210,7 +210,7 @@ class StudioService {
     }
 
     async getGithubContent(owner: string, repo: string, path: string, ref: string = 'main'): Promise<any> {
-        const response = await apiClient.get(`/github/repo/${owner}/${repo}/contents/${path}?ref=${ref}`);
+        const response = await apiClient.get(`/api/github/repo/${owner}/${repo}/contents/${path}?ref=${ref}`);
         if (response.status === 'success') {
             return response.data;
         }
