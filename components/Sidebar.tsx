@@ -9,7 +9,7 @@ interface SidebarProps {
   onChangeView: (view: ViewState) => void;
 }
 
-type ThemeKey = 'sky' | 'amber' | 'emerald' | 'zinc' | 'blue' | 'violet' | 'orange' | 'pink' | 'indigo';
+type ThemeKey = 'sky' | 'amber' | 'emerald' | 'zinc' | 'blue' | 'violet' | 'orange' | 'pink' | 'indigo' | 'cyan';
 
 const themeColors: Record<ThemeKey, string> = {
   sky: 'text-sky-500 group-hover:text-sky-400',
@@ -21,6 +21,7 @@ const themeColors: Record<ThemeKey, string> = {
   orange: 'text-orange-500 group-hover:text-orange-400',
   pink: 'text-pink-500 group-hover:text-pink-400',
   indigo: 'text-indigo-500 group-hover:text-indigo-400',
+  cyan: 'text-cyan-500 group-hover:text-cyan-400',
 };
 
 const bgColors: Record<ThemeKey, string> = {
@@ -33,6 +34,7 @@ const bgColors: Record<ThemeKey, string> = {
   orange: 'bg-orange-500/10 text-orange-400 border-orange-500/50',
   pink: 'bg-pink-500/10 text-pink-400 border-pink-500/50',
   indigo: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/50',
+  cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/50',
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {

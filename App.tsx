@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
+import ArchiPanel from './components/ArchiPanel';
 import AIEngineer from './components/AIEngineer';
 import APIExplorer from './components/APIExplorer';
 import SupabasePanel from './components/SupabasePanel';
@@ -14,6 +15,7 @@ import { ViewState } from './types';
 
 const viewComponents: Record<ViewState, React.FC> = {
   [ViewState.DASHBOARD]: Dashboard,
+  [ViewState.ARCHI]: ArchiPanel,
   [ViewState.APP_IDEAS]: AIEngineer,
   [ViewState.API_EXPLORER]: APIExplorer,
   [ViewState.SUPABASE]: SupabasePanel,

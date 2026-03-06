@@ -11,6 +11,7 @@ import {
   Brain,
   Wrench,
   Factory,
+  Cpu,
 } from 'lucide-react';
 
 export const NAV_ITEMS = [
@@ -25,6 +26,12 @@ export const NAV_ITEMS = [
     label: 'SaaS Factory',
     icon: Factory,
     theme: 'pink',
+  },
+  {
+    id: ViewState.ARCHI,
+    label: 'Archi',
+    icon: Brain,
+    theme: 'cyan',
   },
   {
     id: ViewState.APP_IDEAS,
@@ -111,5 +118,12 @@ export const INTEGRATIONS: Partial<Record<ViewState, { title: string; icon: any;
     description: 'Browse models, manage datasets, and deploy inference endpoints effortlessly.',
     color: 'bg-orange-500',
     gradient: 'bg-orange-500',
+  },
+  [ViewState.ARCHI]: {
+    title: 'Archi',
+    icon: Cpu,
+    description: 'OpenClaw operator center for orchestrating agents, audits, and execution workflows.',
+    color: 'bg-cyan-500',
+    gradient: 'bg-cyan-500',
   },
 };
