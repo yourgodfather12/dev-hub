@@ -69,6 +69,23 @@ type AuditLogEntry = {
   timestamp: string;
 };
 
+const SETTINGS_STORAGE_KEY = 'devhub.preferences';
+
+const getPollingIntervalMs = () => {
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!stored) return 30000;
+    const parsed = JSON.parse(stored) as { pollingInterval?: number };
+    if (parsed.pollingInterval === 10 || parsed.pollingInterval === 60) {
+      return parsed.pollingInterval * 1000;
+    }
+    return 30000;
+  } catch (error) {
+    console.warn('Unable to read polling interval preference', error);
+    return 30000;
+  }
+};
+
 const Dashboard: React.FC = () => {
   // --- DASHBOARD STATE ---
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
@@ -119,6 +136,7 @@ const Dashboard: React.FC = () => {
   const [integrationsLoading, setIntegrationsLoading] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState<number>(() => getPollingIntervalMs());
 
   const createLogEntry = (text: string): AuditLogEntry => ({
     id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -238,8 +256,14 @@ const Dashboard: React.FC = () => {
     const interval = setInterval(async () => {
       const stats = await fetchSystemStats().catch(() => null);
       if (stats) setSystemStats(stats);
-    }, 30000);
+    }, pollingIntervalMs);
     return () => clearInterval(interval);
+  }, [pollingIntervalMs]);
+
+  useEffect(() => {
+    const handler = () => setPollingIntervalMs(getPollingIntervalMs());
+    window.addEventListener('devhub:preferences-updated', handler);
+    return () => window.removeEventListener('devhub:preferences-updated', handler);
   }, []);
 
   useEffect(() => {
@@ -980,6 +1004,47 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-[#111]/80 border border-white/10 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Quick Start</h2>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">First-run actions</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="text-left p-4 rounded-xl border border-white/10 bg-zinc-900/60 hover:border-white/20 transition-colors"
+              >
+                <div className="text-sm font-semibold text-white mb-1">Create project</div>
+                <div className="text-xs text-zinc-400">Connect a repo and begin tracking delivery health.</div>
+              </button>
+              <button
+                onClick={() => setShowLogsModal(true)}
+                className="text-left p-4 rounded-xl border border-white/10 bg-zinc-900/60 hover:border-white/20 transition-colors"
+              >
+                <div className="text-sm font-semibold text-white mb-1">Review system logs</div>
+                <div className="text-xs text-zinc-400">Check platform events, alerts, and runtime behavior.</div>
+              </button>
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="text-left p-4 rounded-xl border border-white/10 bg-zinc-900/60 hover:border-white/20 transition-colors"
+              >
+                <div className="text-sm font-semibold text-white mb-1">Generate AI report</div>
+                <div className="text-xs text-zinc-400">Get a portfolio-level recommendation snapshot.</div>
+              </button>
+            </div>
+          </div>
+          <div className="bg-[#111]/80 border border-white/10 rounded-2xl p-5">
+            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest mb-2">Workspace status</h2>
+            <ul className="space-y-2 text-xs text-zinc-400">
+              <li className="flex items-center justify-between"><span>Projects</span><span className="text-zinc-200 font-semibold">{projects.length}</span></li>
+              <li className="flex items-center justify-between"><span>Deployments</span><span className="text-zinc-200 font-semibold">{deployments.length}</span></li>
+              <li className="flex items-center justify-between"><span>Open dependency risks</span><span className="text-zinc-200 font-semibold">{issues.length}</span></li>
+            </ul>
+          </div>
+        </div>
+
 
         {/* --- ECOSYSTEM SIGNALS --- */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
