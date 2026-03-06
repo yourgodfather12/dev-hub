@@ -194,27 +194,19 @@ class StudioService {
 
     // GitHub
     async getGithubRepos(): Promise<any[]> {
-        const response = await apiClient.get('/github/repos');
-        if (response.status === 'success') {
-            return response.data;
-        }
-        throw new Error(response.message || 'Failed to fetch repositories');
+        const repos = await apiClient.get<any[]>('/api/github/repos');
+        return Array.isArray(repos) ? repos : [];
     }
 
     async getGithubFiles(owner: string, repo: string, ref: string = 'main'): Promise<any> {
-        const response = await apiClient.get(`/github/repo/${owner}/${repo}/files?ref=${ref}`);
-        if (response.status === 'success') {
-            return response.data;
-        }
-        throw new Error(response.message || 'Failed to fetch files');
+        const encodedRef = encodeURIComponent(ref);
+        return apiClient.get<any>(`/api/github/repo/${owner}/${repo}/files?ref=${encodedRef}`);
     }
 
     async getGithubContent(owner: string, repo: string, path: string, ref: string = 'main'): Promise<any> {
-        const response = await apiClient.get(`/github/repo/${owner}/${repo}/contents/${path}?ref=${ref}`);
-        if (response.status === 'success') {
-            return response.data;
-        }
-        throw new Error(response.message || 'Failed to fetch content');
+        const encodedPath = path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
+        const encodedRef = encodeURIComponent(ref);
+        return apiClient.get<any>(`/api/github/repo/${owner}/${repo}/contents/${encodedPath}?ref=${encodedRef}`);
     }
 
     async importGithubRepo(repoData: any): Promise<StudioProject> {

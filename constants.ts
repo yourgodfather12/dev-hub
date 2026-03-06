@@ -2,15 +2,16 @@ import { ViewState } from './types';
 import {
   LayoutDashboard,
   Lightbulb,
+  Plug,
   Database,
   Triangle,
   Container,
   CreditCard,
   Bot,
+  Brain,
   Wrench,
   Factory,
 } from 'lucide-react';
-import { ViewState } from './types';
 
 export const NAV_ITEMS = [
   {
