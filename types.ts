@@ -44,6 +44,7 @@ export interface ChatMessage {
 
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
+  ARCHI = 'ARCHI',
   APP_IDEAS = 'APP_IDEAS',
   API_EXPLORER = 'API_EXPLORER',
   SUPABASE = 'SUPABASE',
@@ -53,6 +54,55 @@ export enum ViewState {
   HUGGING_FACE = 'HUGGING_FACE',
   PROJECT_WORKSHOP = 'PROJECT_WORKSHOP',
   PROJECT_STUDIO = 'PROJECT_STUDIO'
+}
+
+export type ArchiRunStatus = 'idle' | 'running' | 'success' | 'warning';
+
+export interface ArchiAgentRole {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  capabilities: string[];
+  accentClass: string;
+}
+
+export interface ArchiQuickAction {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+  recommendedRoleId: string;
+  actionType: 'audit' | 'plan' | 'patch' | 'review';
+}
+
+export interface ArchiWorkspaceOption {
+  id: string;
+  name: string;
+  repoUrl: string;
+  branch: string;
+  status: 'synced' | 'indexing' | 'attention';
+  lastRun: string;
+}
+
+export interface ArchiRunLog {
+  id: string;
+  message: string;
+  level: 'info' | 'success' | 'warning';
+  timestamp: string;
+}
+
+export interface ArchiRunResult {
+  id: string;
+  startedAt: string;
+  finishedAt?: string;
+  status: ArchiRunStatus;
+  summary?: string;
+  actionType: ArchiQuickAction['actionType'];
+  roleId: string;
+  workspaceId: string;
+  task: string;
+  logs: ArchiRunLog[];
 }
 
 export interface DependencyIssue {
