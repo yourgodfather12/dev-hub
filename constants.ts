@@ -1,7 +1,6 @@
 import { ViewState } from './types';
 import {
   LayoutDashboard,
-  Plug,
   Database,
   Triangle,
   Container,
@@ -38,12 +37,6 @@ export const NAV_ITEMS = [
     label: 'App Ideas',
     icon: Lightbulb,
     theme: 'amber',
-  },
-  {
-    id: ViewState.API_EXPLORER,
-    label: 'API Explorer',
-    icon: Plug,
-    theme: 'emerald',
   },
   {
     id: ViewState.SUPABASE,

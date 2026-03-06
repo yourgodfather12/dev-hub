@@ -46,7 +46,6 @@ export enum ViewState {
   PROJECT_STUDIO = 'PROJECT_STUDIO',
   ARCHI = 'ARCHI',
   APP_IDEAS = 'APP_IDEAS',
-  API_EXPLORER = 'API_EXPLORER',
   SUPABASE = 'SUPABASE',
   VERCEL = 'VERCEL',
   DOCKER = 'DOCKER',
@@ -179,14 +178,4 @@ export interface RepoScanReport {
   categoryScores?: Record<string, number>;
   productionReady?: boolean;
   readinessReasons?: string[];
-}
-
-export interface ApiRequestLog {
-  id: string;
-  method: string;
-  url: string;
-  requestBody?: string | null;
-  responseBody?: string | null;
-  statusCode?: number | null;
-  createdAt: string;
 }
